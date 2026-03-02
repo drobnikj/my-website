@@ -4,17 +4,19 @@ import './App.css';
 
 const TravelsPage = lazy(() => import('./pages/TravelsPage'));
 
-const techStack = [
-  { name: 'TypeScript', icon: '🔷' },
-  { name: 'Node.js', icon: '🟢' },
-  { name: 'React', icon: '⚛️' },
-  { name: 'Python', icon: '🐍' },
-  { name: 'MongoDB', icon: '🍃' },
-  { name: 'PostgreSQL', icon: '🐘' },
-  { name: 'Docker', icon: '🐳' },
-  { name: 'Kubernetes', icon: '☸️' },
-  { name: 'GitHub Actions', icon: '⚡' },
-  { name: 'Apify SDK', icon: '🤖' },
+const projects = [
+  {
+    name: 'Apify',
+    icon: '🕷️',
+    description: 'Web scraping and automation platform. Building tools that help businesses extract data from the web at scale.',
+    url: 'https://apify.com',
+  },
+  {
+    name: 'Realitní pes',
+    icon: '🐕',
+    description: 'Czech real estate watchdog. Monitors property listings and notifies users about new offers matching their criteria.',
+    url: 'https://realitni-pes.cz',
+  },
 ];
 
 function useTheme() {
@@ -139,7 +141,7 @@ function Layout({ children, theme, toggle }: { children: React.ReactNode; theme:
           </Link>
           <div className="nav-links">
             <a href="/#about">About</a>
-            <a href="/#stack">Stack</a>
+            <a href="/#projects">Projects</a>
             <Link to="/travels">Travels</Link>
             <a href="/#contact">Contact</a>
             <button className="theme-toggle" onClick={toggle} aria-label="Toggle theme">
@@ -193,14 +195,24 @@ function HomePage() {
         </div>
       </section>
 
-      <section id="stack" className="section fade-in">
-        <h2 className="section-title">Tech Stack</h2>
-        <div className="stack-grid">
-          {techStack.map((tech) => (
-            <div key={tech.name} className="stack-card">
-              <span className="stack-icon">{tech.icon}</span>
-              <span className="stack-name">{tech.name}</span>
-            </div>
+      <section id="projects" className="section fade-in">
+        <h2 className="section-title">Projects</h2>
+        <div className="projects-grid">
+          {projects.map((project) => (
+            <a
+              key={project.name}
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="project-card"
+            >
+              <span className="project-icon">{project.icon}</span>
+              <div className="project-info">
+                <span className="project-name">{project.name}</span>
+                <p className="project-desc">{project.description}</p>
+              </div>
+              <span className="project-link">↗</span>
+            </a>
           ))}
         </div>
       </section>

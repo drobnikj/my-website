@@ -86,7 +86,15 @@ export default function TravelsPage() {
               key={place.id}
               className="destination-card reveal-item"
               style={{ animationDelay: `${index * 0.08}s` }}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedPlace(place)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedPlace(place);
+                }
+              }}
             >
               <div className="destination-card-img-wrapper">
                 <img

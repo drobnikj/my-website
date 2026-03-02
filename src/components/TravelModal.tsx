@@ -27,10 +27,11 @@ export default function TravelModal({ place, onClose }: Props) {
       if (e.key === 'ArrowLeft') prev();
     };
     window.addEventListener('keydown', handleKey);
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
     };
   }, [onClose, next, prev]);
 
@@ -40,22 +41,24 @@ export default function TravelModal({ place, onClose }: Props) {
     setLoaded(false);
   }, [place.id]);
 
+  const blurUrl = place.blurs[activeIndex];
+
   return (
     <div className="travel-modal-overlay" onClick={onClose}>
       <div className="travel-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="travel-modal-close" onClick={onClose}>✕</button>
+        <button className="travel-modal-close" aria-label="Close" type="button" onClick={onClose}>✕</button>
         <h3 className="travel-modal-title">{place.continentEmoji} {place.name}</h3>
         <p className="travel-modal-desc">{place.description}</p>
         <div className="travel-modal-carousel">
           {/* Blur placeholder */}
-          {!loaded && place.blurs[activeIndex] && (
+          {!loaded && blurUrl && (
             <img
-              src={place.blurs[activeIndex]}
+              src={blurUrl}
               alt=""
               className="carousel-blur"
             />
           )}
-          <button className="carousel-btn carousel-prev" onClick={prev}>‹</button>
+          <button className="carousel-btn carousel-prev" aria-label="Previous photo" type="button" onClick={prev}>‹</button>
           <img
             src={place.photos[activeIndex]}
             alt={`${place.name} ${activeIndex + 1}`}
@@ -63,7 +66,7 @@ export default function TravelModal({ place, onClose }: Props) {
             onLoad={() => setLoaded(true)}
             style={{ opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
           />
-          <button className="carousel-btn carousel-next" onClick={next}>›</button>
+          <button className="carousel-btn carousel-next" aria-label="Next photo" type="button" onClick={next}>›</button>
         </div>
         {place.photos.length > 1 && (
           <div className="carousel-dots">
@@ -71,6 +74,8 @@ export default function TravelModal({ place, onClose }: Props) {
               <button
                 key={i}
                 className={`carousel-dot ${i === activeIndex ? 'active' : ''}`}
+                aria-label={`Go to photo ${i + 1}`}
+                aria-current={i === activeIndex ? 'true' : undefined}
                 onClick={() => { setLoaded(false); setActiveIndex(i); }}
               />
             ))}
@@ -78,14 +83,20 @@ export default function TravelModal({ place, onClose }: Props) {
         )}
         <div className="travel-modal-thumbs">
           {place.thumbs.map((thumb, i) => (
-            <img
+            <button
               key={i}
-              src={thumb}
-              alt={`${place.name} thumb ${i + 1}`}
-              className={`thumb ${i === activeIndex ? 'active' : ''}`}
+              className={`thumb-button ${i === activeIndex ? 'active' : ''}`}
+              aria-label={`View photo ${i + 1} of ${place.name}`}
+              type="button"
               onClick={() => { setLoaded(false); setActiveIndex(i); }}
-              loading="lazy"
-            />
+            >
+              <img
+                src={thumb}
+                alt=""
+                className={`thumb ${i === activeIndex ? 'active' : ''}`}
+                loading="lazy"
+              />
+            </button>
           ))}
         </div>
       </div>

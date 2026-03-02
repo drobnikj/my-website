@@ -618,6 +618,18 @@ body {
   overflow-x: auto;
 }
 
+.travel-modal-thumbs .thumb-button {
+  all: unset;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+.travel-modal-thumbs .thumb-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .travel-modal-thumbs .thumb {
   width: 64px;
   height: 48px;

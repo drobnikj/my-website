@@ -17,7 +17,7 @@ const stats = [
   { label: 'Memories', value: '∞', icon: '💙' },
 ];
 
-function useScrollReveal() {
+function useScrollReveal(deps: unknown[] = []) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,7 +39,8 @@ function useScrollReveal() {
     items.forEach((item) => observer.observe(item));
 
     return () => observer.disconnect();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 
   return ref;
 }
@@ -47,12 +48,12 @@ function useScrollReveal() {
 export default function TravelsPage() {
   const [selectedPlace, setSelectedPlace] = useState<TravelPlace | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const scrollRef = useScrollReveal();
-
   const filteredPlaces = useMemo(
     () => selectedYear === null ? travelPlaces : travelPlaces.filter(p => p.year === selectedYear),
     [selectedYear],
   );
+
+  const scrollRef = useScrollReveal([filteredPlaces]);
 
   return (
     <div className="travels-page" ref={scrollRef}>

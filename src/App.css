@@ -128,6 +128,27 @@ body {
   width: 100%;
 }
 
+.lang-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.5px;
+}
+
+.lang-toggle:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
 .theme-toggle {
   background: none;
   border: 1px solid var(--border);

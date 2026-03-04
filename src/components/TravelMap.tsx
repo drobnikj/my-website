@@ -10,6 +10,7 @@ import TravelModal from './TravelModal';
 
 interface TravelMapProps {
   className?: string;
+  filterYear?: number | null;
 }
 
 function createPhotoIcon(thumbUrl: string): L.DivIcon {
@@ -28,12 +29,14 @@ function getTileUrl(): string {
     : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 }
 
-export default function TravelMap({ className }: TravelMapProps) {
+export default function TravelMap({ className, filterYear }: TravelMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<TravelPlace | null>(null);
 
+  // Initialize map once
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
@@ -53,30 +56,6 @@ export default function TravelMap({ className }: TravelMapProps) {
     }).addTo(map);
 
     tileLayerRef.current = tileLayer;
-
-    const clusterGroup = L.markerClusterGroup({
-      iconCreateFunction(cluster) {
-        const count = cluster.getChildCount();
-        return L.divIcon({
-          html: `<div class="photo-cluster"><span>${count}</span></div>`,
-          className: 'photo-cluster-wrapper',
-          iconSize: [48, 48],
-        });
-      },
-      maxClusterRadius: 60,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-    });
-
-    for (const place of travelPlaces) {
-      const marker = L.marker([place.lat, place.lng], {
-        icon: createPhotoIcon(place.thumbs[0]),
-      });
-      marker.on('click', () => setSelectedPlace(place));
-      clusterGroup.addLayer(marker);
-    }
-
-    map.addLayer(clusterGroup);
     mapInstanceRef.current = map;
 
     const observer = new MutationObserver(() => {
@@ -92,6 +71,44 @@ export default function TravelMap({ className }: TravelMapProps) {
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Update markers when filterYear changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Remove old cluster group
+    if (clusterGroupRef.current) {
+      map.removeLayer(clusterGroupRef.current);
+    }
+
+    const clusterGroup = L.markerClusterGroup({
+      iconCreateFunction(cluster) {
+        const count = cluster.getChildCount();
+        return L.divIcon({
+          html: `<div class="photo-cluster"><span>${count}</span></div>`,
+          className: 'photo-cluster-wrapper',
+          iconSize: [48, 48],
+        });
+      },
+      maxClusterRadius: 60,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+    });
+
+    const places = filterYear == null ? travelPlaces : travelPlaces.filter(p => p.year === filterYear);
+
+    for (const place of places) {
+      const marker = L.marker([place.lat, place.lng], {
+        icon: createPhotoIcon(place.thumbs[0]),
+      });
+      marker.on('click', () => setSelectedPlace(place));
+      clusterGroup.addLayer(marker);
+    }
+
+    map.addLayer(clusterGroup);
+    clusterGroupRef.current = clusterGroup;
+  }, [filterYear]);
 
   return (
     <>

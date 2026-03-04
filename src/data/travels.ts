@@ -9,6 +9,7 @@ export interface TravelPlace {
   blurs: (string | undefined)[];
   continent: string;
   continentEmoji: string;
+  year: number;
 }
 
 const BASE = `${import.meta.env.BASE_URL}travel-map`;
@@ -48,6 +49,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -17.84,
     continent: 'Europe',
     continentEmoji: '🧊',
+    year: 2019,
   }),
   makePlace(['DJI_0018', 'DJI_0022', 'DJI_0070', 'DJI_0090', 'DJI_0092', 'DJI_0111', 'DJI_0125', 'DJI_0140'], {
     id: 'canadian-rockies',
@@ -57,6 +59,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -118.62,
     continent: 'North America',
     continentEmoji: '🏔️',
+    year: 2019,
   }),
   makePlace(['DJI_0022 2', 'DJI_0029'], {
     id: 'malaysia',
@@ -66,6 +69,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: 100.99,
     continent: 'Asia',
     continentEmoji: '🌴',
+    year: 2020,
   }),
   makePlace(['DJI_0049', 'DJI_0055', 'DJI_0118', 'DJI_0149', 'DJI_0171'], {
     id: 'bali',
@@ -75,6 +79,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: 115.27,
     continent: 'Asia',
     continentEmoji: '🌺',
+    year: 2022,
   }),
   makePlace(['DJI_0154', 'DJI_0160'], {
     id: 'yosemite',
@@ -84,6 +89,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -119.81,
     continent: 'North America',
     continentEmoji: '🏞️',
+    year: 2022,
   }),
   makePlace(['DJI_0169', 'DJI_0179', 'DJI_0182'], {
     id: 'silicon-valley',
@@ -93,6 +99,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -122.01,
     continent: 'North America',
     continentEmoji: '💻',
+    year: 2022,
   }),
   makePlace(['DJI_0194', 'DJI_0203', 'DJI_0216', 'DJI_0258', 'DJI_0265', 'DJI_0271', 'DJI_0274', 'DJI_0275', 'DJI_0346', 'DJI_0361'], {
     id: 'mexican-caribbean',
@@ -102,6 +109,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -87.19,
     continent: 'North America',
     continentEmoji: '🏖️',
+    year: 2023,
   }),
   makePlace(['DJI_0327', 'DJI_0336', 'DJI_0495', 'DJI_0500', 'DJI_0503', 'DJI_0521'], {
     id: 'yucatan',
@@ -111,6 +119,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -89.35,
     continent: 'North America',
     continentEmoji: '🏛️',
+    year: 2023,
   }),
   makePlace(['DJI_0539', 'DJI_0559', 'DJI_0573'], {
     id: 'guatemala',
@@ -120,6 +129,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -90.21,
     continent: 'North America',
     continentEmoji: '🌋',
+    year: 2023,
   }),
   makePlace(['DJI_0596', 'DJI_0607', 'DJI_0610', 'DJI_0635'], {
     id: 'ecuador',
@@ -129,6 +139,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -78.38,
     continent: 'South America',
     continentEmoji: '🌿',
+    year: 2024,
   }),
   makePlace(['DJI_0659', 'DJI_0701', 'DJI_0712', 'DJI_0753', 'DJI_0766', 'DJI_0802', 'DJI_0815', 'DJI_0818', 'DJI_0859'], {
     id: 'colombia',
@@ -138,6 +149,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -74.55,
     continent: 'South America',
     continentEmoji: '🦜',
+    year: 2024,
   }),
   makePlace(['DJI_0805', 'DJI_0817', 'DJI_0849', 'DJI_0881'], {
     id: 'costa-rica',
@@ -147,6 +159,7 @@ export const travelPlaces: TravelPlace[] = [
     lng: -84.16,
     continent: 'North America',
     continentEmoji: '🐒',
+    year: 2024,
   }),
   makePlace(['DJI_0768', 'DJI_0776'], {
     id: 'panama',
@@ -156,5 +169,6 @@ export const travelPlaces: TravelPlace[] = [
     lng: -82.67,
     continent: 'North America',
     continentEmoji: '🌊',
+    year: 2024,
   }),
 ];

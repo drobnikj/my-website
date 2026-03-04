@@ -7,13 +7,13 @@ const TravelsPage = lazy(() => import('./pages/TravelsPage'));
 const projects = [
   {
     name: 'Apify',
-    icon: '🕷️',
+    logo: `${import.meta.env.BASE_URL}logos/apify-icon.svg`,
     description: 'Web scraping and automation platform. Building tools that help businesses extract data from the web at scale.',
     url: 'https://apify.com',
   },
   {
     name: 'Realitní pes',
-    icon: '🐕',
+    logo: `${import.meta.env.BASE_URL}logos/realitni-pes.svg`,
     description: 'Czech real estate watchdog. Monitors property listings and notifies users about new offers matching their criteria.',
     url: 'https://realitni-pes.cz',
   },
@@ -206,7 +206,7 @@ function HomePage() {
               rel="noopener noreferrer"
               className="project-card"
             >
-              <span className="project-icon">{project.icon}</span>
+              <img src={project.logo} alt={`${project.name} logo`} className="project-logo" />
               <div className="project-info">
                 <span className="project-name">{project.name}</span>
                 <p className="project-desc">{project.description}</p>

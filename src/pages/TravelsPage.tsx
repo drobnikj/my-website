@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { travelPlaces } from '../data/travels';
 import type { TravelPlace } from '../data/travels';
 import TravelModal from '../components/TravelModal';
@@ -8,6 +8,7 @@ const TravelMap = lazy(() => import('../components/TravelMap'));
 
 const totalPhotos = travelPlaces.reduce((sum, p) => sum + p.photos.length, 0);
 const continents = new Set(travelPlaces.map(p => p.continent)).size;
+const availableYears = [...new Set(travelPlaces.map(p => p.year))].sort((a, b) => b - a);
 
 const stats = [
   { label: 'Destinations', value: travelPlaces.length, icon: '🌍' },
@@ -45,7 +46,13 @@ function useScrollReveal() {
 
 export default function TravelsPage() {
   const [selectedPlace, setSelectedPlace] = useState<TravelPlace | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const scrollRef = useScrollReveal();
+
+  const filteredPlaces = useMemo(
+    () => selectedYear === null ? travelPlaces : travelPlaces.filter(p => p.year === selectedYear),
+    [selectedYear],
+  );
 
   return (
     <div className="travels-page" ref={scrollRef}>
@@ -72,7 +79,7 @@ export default function TravelsPage() {
 
       <section className="travels-map-section">
         <Suspense fallback={<div className="travel-map-loading travels-map-full">Loading map…</div>}>
-          <TravelMap className="travels-map-full" />
+          <TravelMap className="travels-map-full" filterYear={selectedYear} />
         </Suspense>
       </section>
 
@@ -80,8 +87,27 @@ export default function TravelsPage() {
         <h2 className="travels-destinations-title">
           🗺️ Destinations
         </h2>
+
+        <div className="year-filter">
+          <button
+            className={`year-chip${selectedYear === null ? ' active' : ''}`}
+            onClick={() => setSelectedYear(null)}
+          >
+            All
+          </button>
+          {availableYears.map((year) => (
+            <button
+              key={year}
+              className={`year-chip${selectedYear === year ? ' active' : ''}`}
+              onClick={() => setSelectedYear(year)}
+            >
+              {year}
+            </button>
+          ))}
+        </div>
+
         <div className="destinations-grid">
-          {travelPlaces.map((place, index) => (
+          {filteredPlaces.map((place, index) => (
             <div
               key={place.id}
               className="destination-card reveal-item"
@@ -115,7 +141,10 @@ export default function TravelsPage() {
                   <span className="destination-card-photos">{place.photos.length} photos</span>
                 </div>
                 <p className="destination-card-desc">{place.description}</p>
-                <span className="destination-card-continent">{place.continent}</span>
+                <div className="destination-card-tags">
+                  <span className="destination-card-continent">{place.continent}</span>
+                  <span className="destination-card-year">{place.year}</span>
+                </div>
               </div>
             </div>
           ))}

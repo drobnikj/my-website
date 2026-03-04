@@ -119,6 +119,7 @@ function ScrollToTop() {
 
 function Layout({ children, theme, toggle }: { children: React.ReactNode; theme: string; toggle: () => void }) {
   const { language, setLanguage, t } = useLanguage();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <>
@@ -127,11 +128,20 @@ function Layout({ children, theme, toggle }: { children: React.ReactNode; theme:
           <Link to="/" className="nav-logo">
             <span className="nav-logo-bracket">{'{'}</span>drobnikj<span className="nav-logo-bracket">{'}'}</span>
           </Link>
-          <div className="nav-links">
-            <a href="/#about">{t('nav.about')}</a>
-            <a href="/#projects">{t('nav.projects')}</a>
-            <Link to="/travels">{t('nav.travels')}</Link>
-            <a href="/#contact">{t('nav.contact')}</a>
+          <button 
+            className={`nav-hamburger ${menuOpen ? 'open' : ''}`}
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
+            <a href="/#about" onClick={() => setMenuOpen(false)}>{t('nav.about')}</a>
+            <a href="/#projects" onClick={() => setMenuOpen(false)}>{t('nav.projects')}</a>
+            <Link to="/travels" onClick={() => setMenuOpen(false)}>{t('nav.travels')}</Link>
+            <a href="/#contact" onClick={() => setMenuOpen(false)}>{t('nav.contact')}</a>
             <button 
               className="lang-toggle" 
               onClick={() => setLanguage(language === 'en' ? 'cs' : 'en')}

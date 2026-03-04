@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 export type Language = 'en' | 'cs';
 
@@ -27,7 +27,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     // About section
     'about.title': 'About',
-    'about.p1': 'I\'m a software engineer at Apify, where I work on integrations, platform features, and developer tooling. I enjoy building things that make developers\' lives easier.',
+    'about.p1.before': 'I\'m a software engineer at ',
+    'about.p1.after': ', where I work on integrations, platform features, and developer tooling. I enjoy building things that make developers\' lives easier.',
     'about.p2': 'When I\'m not coding, you\'ll find me traveling with my drone, capturing aerial perspectives of the places I visit. I\'ve been to 13 regions across 4 continents — from the glaciers of Iceland to the rainforests of Costa Rica.',
 
     // Projects section
@@ -114,7 +115,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     // About section
     'about.title': 'O mně',
-    'about.p1': 'Jsem software engineer v Apify, kde pracuji na integracích, funkcích platformy a vývojářských nástrojích. Baví mě vytvářet věci, které usnadňují život vývojářům.',
+    'about.p1.before': 'Jsem software engineer v ',
+    'about.p1.after': ', kde pracuji na integracích, funkcích platformy a vývojářských nástrojích. Baví mě vytvářet věci, které usnadňují život vývojářům.',
     'about.p2': 'Když zrovna neprogramuji, najdeš mě na cestách s dronem, jak zachycuji letecké pohledy na místa, která navštívím. Byl jsem ve 13 regionech na 4 kontinentech — od islandských ledovců po kostarické deštné pralesy.',
 
     // Projects section
@@ -197,9 +199,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('language', language);
   }, [language]);
 
-  const t = (key: string): string => {
+  const t = useCallback((key: string): string => {
     return translations[language][key] || key;
-  };
+  }, [language]);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);

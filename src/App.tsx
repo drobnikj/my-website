@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import './App.css';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
@@ -168,7 +168,7 @@ function Layout({ children, theme, toggle }: { children: React.ReactNode; theme:
 function HomePage() {
   const { t } = useLanguage();
 
-  const projects = [
+  const projects = useMemo(() => [
     {
       name: t('projects.apify.name'),
       logo: `${import.meta.env.BASE_URL}logos/apify-icon.svg`,
@@ -181,7 +181,7 @@ function HomePage() {
       description: t('projects.realitni-pes.description'),
       url: 'https://realitni-pes.cz',
     },
-  ];
+  ], [t]);
 
   return (
     <div className="app">
@@ -204,9 +204,9 @@ function HomePage() {
         <h2 className="section-title">{t('about.title')}</h2>
         <div className="about-content">
           <p>
-            {t('about.p1').split('Apify')[0]}
+            {t('about.p1.before')}
             <a href="https://apify.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Apify</a>
-            {t('about.p1').split('Apify')[1]}
+            {t('about.p1.after')}
           </p>
           <p>
             {t('about.p2')}

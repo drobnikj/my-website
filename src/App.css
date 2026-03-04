@@ -58,12 +58,14 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   line-height: 1.6;
   transition: background 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
 }
 
 .app {
   max-width: 800px;
   margin: 0 auto;
   padding: 0 24px;
+  width: 100%;
 }
 
 /* ===== Nav ===== */
@@ -128,6 +130,27 @@ body {
   width: 100%;
 }
 
+.lang-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.5px;
+}
+
+.lang-toggle:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
 .theme-toggle {
   background: none;
   border: 1px solid var(--border);
@@ -144,6 +167,44 @@ body {
   background: var(--accent-glow);
 }
 
+/* Hamburger menu */
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.nav-hamburger:hover {
+  border-color: var(--accent);
+}
+
+.nav-hamburger span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--text);
+  transition: all 0.3s;
+  border-radius: 2px;
+}
+
+.nav-hamburger.open span:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.nav-hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.nav-hamburger.open span:nth-child(3) {
+  transform: rotate(-45deg) translate(5px, -5px);
+}
+
 /* ===== Hero ===== */
 .hero {
   padding: 120px 0 80px;
@@ -158,6 +219,7 @@ body {
   height: 100%;
   pointer-events: none;
   opacity: 0.6;
+  max-width: 100%;
 }
 
 .hero-content {
@@ -725,10 +787,42 @@ body {
   .travel-modal {
     padding: 20px;
   }
-  .nav-links {
-    gap: 16px;
+
+  /* Mobile nav with hamburger */
+  .nav {
+    flex-wrap: wrap;
   }
+
+  .nav-hamburger {
+    display: flex;
+  }
+
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+    padding-top: 16px;
+    align-items: stretch;
+  }
+
+  .nav-links.open {
+    display: flex;
+  }
+
   .nav-links a {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
+    padding: 8px 0;
+    text-align: center;
+  }
+
+  .nav-links a::after {
+    display: none;
+  }
+
+  .lang-toggle,
+  .theme-toggle {
+    width: 100%;
+    justify-content: center;
   }
 }

@@ -1,23 +1,9 @@
-import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import './App.css';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 
 const TravelsPage = lazy(() => import('./pages/TravelsPage'));
-
-const projects = [
-  {
-    name: 'Apify',
-    logo: `${import.meta.env.BASE_URL}logos/apify-icon.svg`,
-    description: 'Web scraping and automation platform. Building tools that help businesses extract data from the web at scale.',
-    url: 'https://apify.com',
-  },
-  {
-    name: 'Realitní pes',
-    logo: `${import.meta.env.BASE_URL}logos/realitni-pes.svg`,
-    description: 'Czech real estate watchdog. Monitors property listings and notifies users about new offers matching their criteria.',
-    url: 'https://realitni-pes.cz',
-  },
-];
 
 function useTheme() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -132,6 +118,9 @@ function ScrollToTop() {
 }
 
 function Layout({ children, theme, toggle }: { children: React.ReactNode; theme: string; toggle: () => void }) {
+  const { language, setLanguage, t } = useLanguage();
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <>
       <div className="app">
@@ -139,11 +128,27 @@ function Layout({ children, theme, toggle }: { children: React.ReactNode; theme:
           <Link to="/" className="nav-logo">
             <span className="nav-logo-bracket">{'{'}</span>drobnikj<span className="nav-logo-bracket">{'}'}</span>
           </Link>
-          <div className="nav-links">
-            <a href="/#about">About</a>
-            <a href="/#projects">Projects</a>
-            <Link to="/travels">Travels</Link>
-            <a href="/#contact">Contact</a>
+          <button 
+            className={`nav-hamburger ${menuOpen ? 'open' : ''}`}
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
+            <a href="/#about" onClick={() => setMenuOpen(false)}>{t('nav.about')}</a>
+            <a href="/#projects" onClick={() => setMenuOpen(false)}>{t('nav.projects')}</a>
+            <Link to="/travels" onClick={() => setMenuOpen(false)}>{t('nav.travels')}</Link>
+            <a href="/#contact" onClick={() => setMenuOpen(false)}>{t('nav.contact')}</a>
+            <button 
+              className="lang-toggle" 
+              onClick={() => setLanguage(language === 'en' ? 'cs' : 'en')}
+              aria-label="Toggle language"
+            >
+              {language === 'en' ? 'CS' : 'EN'}
+            </button>
             <button className="theme-toggle" onClick={toggle} aria-label="Toggle theme">
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
@@ -153,7 +158,7 @@ function Layout({ children, theme, toggle }: { children: React.ReactNode; theme:
       {children}
       <div className="app">
         <footer className="footer">
-          <p>© {new Date().getFullYear()} Jakub Drobník. Built with React + TypeScript.</p>
+          <p>© {new Date().getFullYear()} Jakub Drobník. {t('footer.text')}</p>
         </footer>
       </div>
     </>
@@ -161,42 +166,56 @@ function Layout({ children, theme, toggle }: { children: React.ReactNode; theme:
 }
 
 function HomePage() {
+  const { t } = useLanguage();
+
+  const projects = useMemo(() => [
+    {
+      name: t('projects.apify.name'),
+      logo: `${import.meta.env.BASE_URL}logos/apify-icon.svg`,
+      description: t('projects.apify.description'),
+      url: 'https://apify.com',
+    },
+    {
+      name: t('projects.realitni-pes.name'),
+      logo: `${import.meta.env.BASE_URL}logos/realitni-pes.svg`,
+      description: t('projects.realitni-pes.description'),
+      url: 'https://realitni-pes.cz',
+    },
+  ], [t]);
+
   return (
     <div className="app">
       <section className="hero">
         <HeroParticles />
         <div className="hero-content">
           <p className="hero-greeting">
-            <span className="hero-greeting-code">{'>'}</span> Hi, I'm
+            <span className="hero-greeting-code">{'>'}</span> {t('hero.greeting')}
           </p>
-          <h1 className="hero-name">Jakub Drobník</h1>
-          <h2 className="hero-title">Software Engineer @ Apify</h2>
+          <h1 className="hero-name">{t('hero.name')}</h1>
+          <h2 className="hero-title">{t('hero.title')}</h2>
           <p className="hero-desc">
-            Building web scraping tools, integrations, and developer platforms.
-            Passionate about clean code, open source, and exploring the world with a drone.
+            {t('hero.description')}
           </p>
-          <Link to="/travels" className="hero-cta">See my travels →</Link>
+          <Link to="/travels" className="hero-cta">{t('hero.cta')}</Link>
         </div>
       </section>
 
       <section id="about" className="section fade-in">
-        <h2 className="section-title">About</h2>
+        <h2 className="section-title">{t('about.title')}</h2>
         <div className="about-content">
           <p>
-            I'm a software engineer at <a href="https://apify.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Apify</a>,
-            where I work on integrations, platform features, and developer tooling.
-            I enjoy building things that make developers' lives easier.
+            {t('about.p1.before')}
+            <a href="https://apify.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Apify</a>
+            {t('about.p1.after')}
           </p>
           <p>
-            When I'm not coding, you'll find me traveling with my drone, capturing aerial
-            perspectives of the places I visit. I've been to 13 regions across 4 continents
-            — from the glaciers of Iceland to the rainforests of Costa Rica.
+            {t('about.p2')}
           </p>
         </div>
       </section>
 
       <section id="projects" className="section fade-in">
-        <h2 className="section-title">Projects</h2>
+        <h2 className="section-title">{t('projects.title')}</h2>
         <div className="projects-grid">
           {projects.map((project) => (
             <a
@@ -219,19 +238,19 @@ function HomePage() {
 
       <section className="section fade-in">
         <div className="travels-teaser">
-          <span className="travels-teaser-emoji">🌍</span>
-          <h3 className="travels-teaser-title">I also travel with a drone</h3>
+          <span className="travels-teaser-emoji">{t('travels-teaser.emoji')}</span>
+          <h3 className="travels-teaser-title">{t('travels-teaser.title')}</h3>
           <p className="travels-teaser-desc">
-            13 destinations, 4 continents, 70 drone photos. Check out my interactive travel map.
+            {t('travels-teaser.description')}
           </p>
           <Link to="/travels" className="travels-teaser-cta">
-            Explore my travels →
+            {t('travels-teaser.cta')}
           </Link>
         </div>
       </section>
 
       <section id="contact" className="section fade-in">
-        <h2 className="section-title">Contact</h2>
+        <h2 className="section-title">{t('contact.title')}</h2>
         <div className="contact-links">
           <a
             href="https://github.com/drobnikj"
@@ -266,7 +285,7 @@ function HomePage() {
   );
 }
 
-function App() {
+function AppContent() {
   const { theme, toggle } = useTheme();
 
   return (
@@ -286,6 +305,14 @@ function App() {
         </Routes>
       </Layout>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
 

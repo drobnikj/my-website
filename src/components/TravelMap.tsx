@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
-import { travelPlaces } from '../data/travels';
+import { getTravelPlaces } from '../data/travels';
 import type { TravelPlace } from '../data/travels';
 import TravelModal from './TravelModal';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface TravelMapProps {
   className?: string;
@@ -30,6 +31,8 @@ function getTileUrl(): string {
 }
 
 export default function TravelMap({ className, filterYear }: TravelMapProps) {
+  const { t } = useLanguage();
+  const travelPlaces = useMemo(() => getTravelPlaces(t), [t]);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -72,7 +75,7 @@ export default function TravelMap({ className, filterYear }: TravelMapProps) {
     };
   }, []);
 
-  // Update markers when filterYear changes
+  // Update markers when filterYear or travelPlaces changes
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -108,7 +111,7 @@ export default function TravelMap({ className, filterYear }: TravelMapProps) {
 
     map.addLayer(clusterGroup);
     clusterGroupRef.current = clusterGroup;
-  }, [filterYear]);
+  }, [filterYear, travelPlaces]);
 
   return (
     <>

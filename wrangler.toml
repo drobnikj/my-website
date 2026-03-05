@@ -1,0 +1,25 @@
+name = "my-website-api"
+main = "worker/index.ts"
+compatibility_date = "2024-03-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "my-website-db"
+database_id = "placeholder-for-production"
+
+# R2 Storage binding (for photos)
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "my-website-photos"
+
+# Local development uses local D1 and R2
+[env.development]
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "my-website-db"
+database_id = "local"
+
+[[env.development.r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "my-website-photos"

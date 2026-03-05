@@ -6,6 +6,7 @@
 export interface Env {
   DB: D1Database;
   PHOTOS: R2Bucket;
+  ENVIRONMENT?: string;
 }
 
 export default {
@@ -26,22 +27,22 @@ export default {
 
     // Router
     try {
-      // Health check endpoint
-      if (url.pathname === '/') {
-        return Response.json(
-          {
-            status: 'ok',
-            message: 'my-website API is running',
-            timestamp: new Date().toISOString(),
-            version: '1.0.0',
-          },
-          { headers: corsHeaders }
-        );
-      }
-
       // API endpoints
       if (url.pathname.startsWith('/api/')) {
         const path = url.pathname.replace('/api', '');
+
+        // Health check endpoint
+        if (path === '/health' && request.method === 'GET') {
+          return Response.json(
+            {
+              status: 'ok',
+              message: 'my-website API is running',
+              timestamp: new Date().toISOString(),
+              version: '1.0.0',
+            },
+            { headers: corsHeaders }
+          );
+        }
 
         // GET /api/destinations - List all destinations
         if (path === '/destinations' && request.method === 'GET') {
@@ -103,10 +104,17 @@ export default {
       );
     } catch (error) {
       console.error('Worker error:', error);
+      
+      // Environment-based error responses
+      const isDevelopment = env.ENVIRONMENT === 'development' || !env.ENVIRONMENT;
+      
       return Response.json(
         {
           error: 'Internal server error',
-          message: error instanceof Error ? error.message : 'Unknown error',
+          ...(isDevelopment && {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+          }),
         },
         { status: 500, headers: corsHeaders }
       );

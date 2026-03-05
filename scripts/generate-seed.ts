@@ -139,6 +139,15 @@ const travelPlaces = [
   },
 ];
 
+/**
+ * Photo IDs that have blur placeholder images available.
+ * 
+ * This list is manually maintained and represents photos for which blur versions
+ * have been generated and uploaded to R2 storage.
+ * 
+ * TODO: Consider auto-detecting blur images from filesystem or R2 bucket
+ * to avoid manual maintenance of this list.
+ */
 const HAS_BLUR = new Set([
   'DJI_0006', 'DJI_0018', 'DJI_0022', 'DJI_0022 2', 'DJI_0027', 'DJI_0029',
   'DJI_0036', 'DJI_0049', 'DJI_0055', 'DJI_0070', 'DJI_0090', 'DJI_0092',
@@ -159,6 +168,8 @@ console.log('DELETE FROM destinations;');
 console.log();
 
 console.log('-- Insert destinations');
+// TODO: Add Czech translations for name_cs and description_cs
+// Currently using English values as placeholders
 travelPlaces.forEach((place) => {
   const values = [
     `'${place.id}'`,

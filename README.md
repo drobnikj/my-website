@@ -36,6 +36,7 @@ Personal travel photography website with dynamic photo management powered by Clo
 3. **Seed the database with test data:**
 
    ```bash
+   # ⚠️  WARNING: This will delete all existing data in the database
    npm run db:seed:local
    ```
 
@@ -104,7 +105,7 @@ Personal travel photography website with dynamic photo management powered by Clo
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/` | Health check |
+| `GET` | `/api/health` | Health check |
 | `GET` | `/api/destinations` | List all destinations (ordered by year) |
 | `GET` | `/api/destinations/:id` | Get destination with photos |
 
@@ -156,13 +157,15 @@ The frontend is automatically deployed to Vercel on push to `main`.
 
 ### Backend (Cloudflare Workers)
 
+**⚠️  Important:** The production bindings in `wrangler.toml` are commented out by default to prevent failed deployments. Before deploying to production, you must set up the Cloudflare resources:
+
 1. **Create D1 database:**
 
    ```bash
    wrangler d1 create my-website-db
    ```
 
-   Copy the `database_id` and update `wrangler.toml`.
+   This will output a `database_id`. Save it.
 
 2. **Create R2 bucket:**
 
@@ -170,17 +173,27 @@ The frontend is automatically deployed to Vercel on push to `main`.
    wrangler r2 bucket create my-website-photos
    ```
 
-3. **Run migrations:**
+3. **Update `wrangler.toml`:**
+
+   Uncomment the production bindings and replace `REPLACE_WITH_ACTUAL_DATABASE_ID` with your actual database ID from step 1.
+
+4. **Run migrations:**
 
    ```bash
    npm run db:migrate:prod
    ```
 
-4. **Deploy Worker:**
+5. **Upload photos to R2:**
+
+   Upload your photo files to the R2 bucket (full, thumb, and blur versions).
+
+6. **Deploy Worker:**
 
    ```bash
    npm run build:worker
    ```
+
+**GitHub Auto-Deploy:** If you have Cloudflare Pages/Workers GitHub integration enabled, it will auto-deploy on push. Make sure you've completed the setup above first, or disable auto-deploy in the Cloudflare dashboard until ready.
 
 ## Project Structure
 

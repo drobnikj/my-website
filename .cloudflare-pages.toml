@@ -1,0 +1,12 @@
+# Cloudflare Pages configuration
+# This deploys only the frontend. The Worker API is deployed separately via wrangler deploy.
+
+[build]
+command = "npm run build"
+output_directory = "dist"
+
+# Don't deploy the Worker code - that's handled separately
+# The worker/ directory is for standalone Worker deployment via wrangler deploy
+
+[build.environment]
+NODE_VERSION = "18"

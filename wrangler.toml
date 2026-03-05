@@ -1,17 +1,28 @@
-name = "my-website-api"
+name = "my-website"
 main = "worker/index.ts"
 compatibility_date = "2024-03-01"
 
-# D1 Database binding
-[[d1_databases]]
-binding = "DB"
-database_name = "my-website-db"
-database_id = "placeholder-for-production"
+# Production bindings - requires manual setup before deployment
+# 
+# ⚠️  IMPORTANT: This configuration is incomplete for production deployment.
+# Before deploying, you must:
+# 1. Create D1 database: wrangler d1 create my-website-db
+# 2. Create R2 bucket: wrangler r2 bucket create my-website-photos
+# 3. Update database_id below with the actual value from step 1
+# 4. Run migrations: wrangler d1 migrations apply my-website-db --remote
+#
+# The GitHub Actions auto-deploy is configured to deploy the production environment.
+# If you haven't set up the production bindings yet, you can disable auto-deploy
+# in the Cloudflare dashboard or comment out the production bindings below.
 
-# R2 Storage binding (for photos)
-[[r2_buckets]]
-binding = "PHOTOS"
-bucket_name = "my-website-photos"
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "my-website-db"
+# database_id = "REPLACE_WITH_ACTUAL_DATABASE_ID"
+
+# [[r2_buckets]]
+# binding = "PHOTOS"
+# bucket_name = "my-website-photos"
 
 # Local development uses local D1 and R2
 [env.development]

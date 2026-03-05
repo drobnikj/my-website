@@ -1,5 +1,11 @@
+# Cloudflare Pages configuration
+# This project uses Pages with Functions for both frontend and API
+# - Pages serves the Vite-built React app (from dist/)
+# - Functions (in functions/) handle API routes (/api/*)
+# - D1 and R2 bindings work with both Pages and Functions
+
 name = "my-website"
-main = "worker/index.ts"
+pages_build_output_dir = "dist"
 compatibility_date = "2024-03-01"
 
 # Production bindings - requires manual setup before deployment
@@ -10,11 +16,11 @@ compatibility_date = "2024-03-01"
 # 2. Create R2 bucket: wrangler r2 bucket create my-website-photos
 # 3. Update database_id below with the actual value from step 1
 # 4. Run migrations: wrangler d1 migrations apply my-website-db --remote
+# 5. Deploy: npx wrangler pages deploy dist --project-name=my-website
 #
-# The GitHub Actions auto-deploy is configured to deploy the production environment.
-# If you haven't set up the production bindings yet, you can disable auto-deploy
-# in the Cloudflare dashboard or comment out the production bindings below.
+# For GitHub Actions auto-deploy, configure these bindings in the Cloudflare dashboard.
 
+# Uncomment after creating production resources:
 # [[d1_databases]]
 # binding = "DB"
 # database_name = "my-website-db"
@@ -25,6 +31,7 @@ compatibility_date = "2024-03-01"
 # bucket_name = "my-website-photos"
 
 # Local development uses local D1 and R2
+# Run: npx wrangler pages dev dist --d1=DB=my-website-db --r2=PHOTOS=my-website-photos
 [env.development]
 [[env.development.d1_databases]]
 binding = "DB"

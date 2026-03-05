@@ -6,9 +6,9 @@ export default defineConfig({
   base: '/',
   server: {
     proxy: {
-      // Proxy API requests to Cloudflare Worker running on port 8787
+      // Proxy API requests to Cloudflare Pages Functions dev server
       '/api': {
-        target: 'http://localhost:8787',
+        target: 'http://localhost:8788',
         changeOrigin: true,
         timeout: 30000,
       },

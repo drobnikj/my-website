@@ -5,10 +5,10 @@ Personal travel photography website with dynamic photo management powered by Clo
 ## Architecture
 
 - **Frontend:** React + TypeScript + Vite
-- **Backend:** Cloudflare Workers (TypeScript)
+- **Backend:** Cloudflare Pages Functions (TypeScript)
 - **Database:** Cloudflare D1 (SQLite)
 - **Storage:** Cloudflare R2 (object storage for photos)
-- **Deployment:** Vercel (frontend), Cloudflare Workers (API)
+- **Deployment:** Cloudflare Pages (unified frontend + API)
 
 ## Local Development
 
@@ -50,9 +50,9 @@ Personal travel photography website with dynamic photo management powered by Clo
 
    This starts **both**:
    - Frontend (Vite) on `http://localhost:5173`
-   - Backend (Cloudflare Worker) on `http://localhost:8787`
+   - Backend (Cloudflare Pages Functions) on `http://localhost:8788`
 
-   The frontend automatically proxies `/api/*` requests to the Worker.
+   The frontend automatically proxies `/api/*` requests to the Functions dev server.
 
 ### Available Scripts
 
@@ -60,9 +60,9 @@ Personal travel photography website with dynamic photo management powered by Clo
 |--------|-------------|
 | `npm run dev` | Start frontend + backend (parallel) |
 | `npm run dev:frontend` | Start only Vite dev server |
-| `npm run dev:worker` | Start only Cloudflare Worker (local mode) |
+| `npm run dev:functions` | Start only Pages Functions dev server |
 | `npm run build` | Build frontend for production |
-| `npm run build:worker` | Deploy Worker to Cloudflare |
+| `npm run deploy` | Build and deploy to Cloudflare Pages |
 | `npm run db:migrate:local` | Run D1 migrations locally |
 | `npm run db:migrate:prod` | Run D1 migrations in production |
 | `npm run db:seed:local` | Seed local database with test data |
@@ -151,11 +151,9 @@ Personal travel photography website with dynamic photo management powered by Clo
 
 ## Production Deployment
 
-### Frontend (Vercel)
+### Cloudflare Pages (Frontend + API)
 
-The frontend is automatically deployed to Vercel on push to `main`.
-
-### Backend (Cloudflare Workers)
+The entire application (frontend + API) is deployed as a single Cloudflare Pages project.
 
 **⚠️  Important:** The production bindings in `wrangler.toml` are commented out by default to prevent failed deployments. Before deploying to production, you must set up the Cloudflare resources:
 
@@ -183,22 +181,37 @@ The frontend is automatically deployed to Vercel on push to `main`.
    npm run db:migrate:prod
    ```
 
-5. **Upload photos to R2:**
+5. **Configure bindings in Cloudflare dashboard:**
+
+   Go to your Pages project > Settings > Functions and add:
+   - **D1 binding:** Variable name `DB`, select `my-website-db`
+   - **R2 binding:** Variable name `PHOTOS`, select `my-website-photos`
+
+6. **Upload photos to R2:**
 
    Upload your photo files to the R2 bucket (full, thumb, and blur versions).
 
-6. **Deploy Worker:**
+7. **Deploy to Cloudflare Pages:**
 
    ```bash
-   npm run build:worker
+   npm run deploy
    ```
 
-**GitHub Auto-Deploy:** If you have Cloudflare Pages/Workers GitHub integration enabled, it will auto-deploy on push. Make sure you've completed the setup above first, or disable auto-deploy in the Cloudflare dashboard until ready.
+   Or connect your GitHub repo to Cloudflare Pages for automatic deployments on push.
+
+**GitHub Auto-Deploy:** If you connect your repo to Cloudflare Pages, it will auto-deploy on push. Make sure you've completed the setup above (especially step 5: bindings configuration) before the first deployment.
 
 ## Project Structure
 
 ```
 .
+├── functions/            # Cloudflare Pages Functions (API)
+│   ├── api/
+│   │   ├── health.ts           # GET /api/health
+│   │   └── destinations/
+│   │       ├── index.ts        # GET /api/destinations
+│   │       └── [id].ts         # GET /api/destinations/:id
+│   └── types.d.ts
 ├── migrations/           # D1 database migrations
 │   └── 0001_initial_schema.sql
 ├── public/               # Static assets
@@ -209,12 +222,16 @@ The frontend is automatically deployed to Vercel on push to `main`.
 │   ├── components/       # React components
 │   ├── data/             # Static data (travels.ts)
 │   └── main.tsx          # React entry point
-├── worker/               # Cloudflare Worker code
-│   └── index.ts          # Worker entry point
-├── wrangler.toml         # Cloudflare Worker config
+├── worker/               # ⚠️  DEPRECATED (see MIGRATION.md)
+│   └── index.ts          # Old Worker code (no longer used)
+├── wrangler.toml         # Cloudflare Pages config
 ├── vite.config.ts        # Vite config (with API proxy)
 └── package.json          # Dependencies & scripts
 ```
+
+## Migration from Workers to Pages Functions
+
+See [MIGRATION.md](./MIGRATION.md) for details on the architecture change from separate Worker deployment to unified Cloudflare Pages with Functions.
 
 ## License
 

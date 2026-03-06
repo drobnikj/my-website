@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm-run-all --parallel --print-label dev:frontend dev:functions",
     "dev:frontend": "vite",
-    "dev:functions": "wrangler dev --d1=DB=my-website-db --r2=PHOTOS=my-website-photos --port 8788",
+    "dev:functions": "wrangler pages dev dist --d1 DB=my-website-db --r2 PHOTOS=my-website-photos --port 8788",
     "build": "tsc -b && vite build",
     "deploy": "npm run build && wrangler deploy",
     "lint": "eslint .",

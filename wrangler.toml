@@ -20,24 +20,23 @@ compatibility_date = "2024-03-01"
 #
 # For GitHub Actions auto-deploy, configure these bindings in the Cloudflare dashboard.
 
-# Uncomment after creating production resources:
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "my-website-db"
-# database_id = "REPLACE_WITH_ACTUAL_DATABASE_ID"
-
-# [[r2_buckets]]
-# binding = "PHOTOS"
-# bucket_name = "my-website-photos"
-
-# Local development uses local D1 and R2
-# Run: npx wrangler pages dev dist --d1=DB=my-website-db --r2=PHOTOS=my-website-photos
-[env.development]
-[[env.development.d1_databases]]
+[[d1_databases]]
 binding = "DB"
 database_name = "my-website-db"
-database_id = "local"
+database_id = "0648a3e5-5de7-421c-bd5c-e1fd35a4a18d"
 
-[[env.development.r2_buckets]]
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "my-website-photos"
+
+# Preview environment uses the same production resources
+# For local development, use: npx wrangler pages dev dist --d1=DB=my-website-db --r2=PHOTOS=my-website-photos
+[env.preview]
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "my-website-db"
+database_id = "0648a3e5-5de7-421c-bd5c-e1fd35a4a18d"
+
+[[env.preview.r2_buckets]]
 binding = "PHOTOS"
 bucket_name = "my-website-photos"

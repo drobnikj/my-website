@@ -4,10 +4,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm-run-all --parallel --print-label dev:frontend dev:functions",
+    "dev:frontend": "vite",
+    "dev:functions": "wrangler pages dev dist --d1 DB=my-website-db --r2 PHOTOS=my-website-photos --port 8788",
     "build": "tsc -b && vite build",
+    "deploy": "npm run build && wrangler deploy",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:migrate:local": "wrangler d1 migrations apply my-website-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply my-website-db --remote",
+    "db:seed:local": "tsx scripts/generate-seed.ts > migrations/seed.sql && wrangler d1 execute my-website-db --local --file=migrations/seed.sql"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -27,8 +33,11 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "npm-run-all": "^4.1.5",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "wrangler": "^4.70.0"
   }
 }

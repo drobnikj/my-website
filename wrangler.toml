@@ -14,6 +14,9 @@ directory = "./dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "my-website-db"
+# ⚠️ IMPORTANT: This database_id is specific to the original deployment.
+# If deploying to a new Cloudflare account, create a new D1 database with
+# `wrangler d1 create my-website-db` and replace this ID with your own.
 database_id = "0648a3e5-5de7-421c-bd5c-e1fd35a4a18d"
 
 [[r2_buckets]]

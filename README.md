@@ -36,11 +36,15 @@ Personal travel photography website with dynamic photo management powered by Clo
 3. **Seed the database with test data:**
 
    ```bash
-   # ⚠️  WARNING: This will delete all existing data in the database
    npm run db:seed:local
    ```
 
-   This populates the database with data from `src/data/travels.ts`.
+   **⚠️  WARNING: DESTRUCTIVE OPERATION**  
+   This script executes `DELETE FROM photos; DELETE FROM destinations;` before inserting seed data.  
+   **All existing data in the database will be permanently deleted.**  
+   Only run this on a fresh database or when you intentionally want to reset all data.
+
+   The script populates the database with data from `src/data/travels.ts`.
 
 4. **Run the development servers:**
 

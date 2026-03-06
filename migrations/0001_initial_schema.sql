@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS photos (
   FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE CASCADE
 );
 
--- Index for efficient lookups
-CREATE INDEX idx_photos_destination ON photos(destination_id);
+-- Indexes for efficient lookups
+CREATE INDEX idx_photos_destination_id ON photos(destination_id);
 CREATE INDEX idx_photos_visible ON photos(is_visible);
 CREATE INDEX idx_destinations_year ON destinations(year);
 CREATE INDEX idx_destinations_continent ON destinations(continent);

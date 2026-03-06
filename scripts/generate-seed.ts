@@ -142,11 +142,19 @@ const travelPlaces = [
 /**
  * Photo IDs that have blur placeholder images available.
  * 
- * This list is manually maintained and represents photos for which blur versions
- * have been generated and uploaded to R2 storage.
+ * ⚠️ MAINTENANCE REQUIRED: This list is manually maintained.
+ * 
+ * This hardcoded set represents photos for which blur versions (-blur.webp)
+ * have been generated and uploaded to R2 storage. When adding new photos:
+ * 1. Generate blur placeholder: `convert image.webp -blur 0x8 image-blur.webp`
+ * 2. Upload blur image to R2
+ * 3. Add photo ID to this HAS_BLUR set
  * 
  * TODO: Consider auto-detecting blur images from filesystem or R2 bucket
- * to avoid manual maintenance of this list.
+ * to avoid manual maintenance. Possible approaches:
+ *   - Scan public/travel-map/ for *-blur.webp files at build time
+ *   - Query R2 bucket for blur images at runtime
+ *   - Generate blur placeholders automatically during build
  */
 const HAS_BLUR = new Set([
   'DJI_0006', 'DJI_0018', 'DJI_0022', 'DJI_0022 2', 'DJI_0027', 'DJI_0029',
@@ -168,15 +176,19 @@ console.log('DELETE FROM destinations;');
 console.log();
 
 console.log('-- Insert destinations');
-// TODO: Add Czech translations for name_cs and description_cs
-// Currently using English values as placeholders
 travelPlaces.forEach((place) => {
+  // TODO: Add proper Czech translations for name_cs and description_cs
+  // Currently both Czech fields duplicate the English values as placeholders.
+  // Options:
+  //   1. Add actual Czech translations to the data
+  //   2. Use NULL for Czech fields until translations are available
+  //   3. Keep current approach if bilingual display isn't needed yet
   const values = [
     `'${place.id}'`,
     `'${place.name.replace(/'/g, "''")}'`,
-    `'${place.name.replace(/'/g, "''")}'`, // name_cs = name_en for now
+    `'${place.name.replace(/'/g, "''")}'`, // name_cs = name_en (placeholder)
     `'${place.description.replace(/'/g, "''")}'`,
-    `'${place.description.replace(/'/g, "''")}'`, // description_cs = description_en for now
+    `'${place.description.replace(/'/g, "''")}'`, // description_cs = description_en (placeholder)
     place.lat,
     place.lng,
     `'${place.continent}'`,

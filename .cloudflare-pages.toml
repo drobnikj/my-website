@@ -1,0 +1,16 @@
+# Cloudflare Pages deployment configuration
+# This file is used by Cloudflare Pages automatic deployments
+
+[build]
+command = "npm run build"
+output_directory = "dist"
+
+[build.environment]
+NODE_VERSION = "18"
+
+# Note: D1 and R2 bindings must be configured in the Cloudflare dashboard
+# Go to: Pages project > Settings > Functions > Add binding
+# 
+# Required bindings:
+# - D1 Database: DB -> my-website-db
+# - R2 Bucket: PHOTOS -> my-website-photos

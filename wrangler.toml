@@ -1,0 +1,37 @@
+# Cloudflare Pages configuration
+# This project uses Cloudflare Pages with Functions for both frontend and API
+# - Pages Functions (functions/api/*) handle API routes (/api/*)
+# - Static assets are served from dist/ (Vite-built React app)
+# - D1 and R2 bindings provide database and storage
+
+name = "my-website"
+compatibility_date = "2024-03-01"
+
+[assets]
+directory = "./dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "my-website-db"
+# ⚠️ IMPORTANT: This database_id is a PLACEHOLDER from the original deployment.
+# When deploying to your own Cloudflare account, you MUST:
+#   1. Create a new D1 database: `wrangler d1 create my-website-db`
+#   2. Replace this database_id with your own ID from the output
+# Using this placeholder ID will fail in production.
+database_id = "0648a3e5-5de7-421c-bd5c-e1fd35a4a18d"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "my-website-photos"
+
+# Preview environment uses the same production resources
+# For local development, use: npx wrangler dev --d1=DB=my-website-db --r2=PHOTOS=my-website-photos
+[env.preview]
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "my-website-db"
+database_id = "0648a3e5-5de7-421c-bd5c-e1fd35a4a18d"
+
+[[env.preview.r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "my-website-photos"

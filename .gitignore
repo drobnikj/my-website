@@ -2,3 +2,10 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# Wrangler
+.wrangler/
+.dev.vars
+
+# Generated files
+migrations/seed.sql

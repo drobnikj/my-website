@@ -2,6 +2,19 @@
  * Single destination endpoint: GET /api/destinations/:id
  */
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export const onRequestOptions: PagesFunction = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+};
+
 export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   try {
     const { id } = params;
@@ -15,7 +28,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
     if (!destination) {
       return Response.json(
         { error: 'Destination not found' },
-        { status: 404 }
+        { 
+          status: 404,
+          headers: CORS_HEADERS,
+        }
       );
     }
 
@@ -25,12 +41,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
       .bind(id)
       .all();
 
-    return Response.json({
-      data: {
-        ...destination,
-        photos: photos.results,
+    return Response.json(
+      {
+        data: {
+          ...destination,
+          photos: photos.results,
+        },
       },
-    });
+      { headers: CORS_HEADERS }
+    );
   } catch (error) {
     console.error('Error fetching destination:', error);
     
@@ -44,7 +63,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
           stack: error instanceof Error ? error.stack : undefined,
         }),
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: CORS_HEADERS,
+      }
     );
   }
 };

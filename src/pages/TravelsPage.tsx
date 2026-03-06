@@ -1,21 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { travelPlaces } from '../data/travels';
+import { getTravelPlaces } from '../data/travels';
 import type { TravelPlace } from '../data/travels';
 import TravelModal from '../components/TravelModal';
 import './TravelsPage.css';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const TravelMap = lazy(() => import('../components/TravelMap'));
-
-const totalPhotos = travelPlaces.reduce((sum, p) => sum + p.photos.length, 0);
-const continents = new Set(travelPlaces.map(p => p.continent)).size;
-const availableYears = [...new Set(travelPlaces.map(p => p.year))].sort((a, b) => b - a);
-
-const stats = [
-  { label: 'Destinations', value: travelPlaces.length, icon: '🌍' },
-  { label: 'Continents', value: continents, icon: '✈️' },
-  { label: 'Drone Photos', value: totalPhotos, icon: '📸' },
-  { label: 'Memories', value: '∞', icon: '💙' },
-];
 
 function useScrollReveal(deps: unknown[] = []) {
   const ref = useRef<HTMLDivElement>(null);
@@ -46,11 +36,24 @@ function useScrollReveal(deps: unknown[] = []) {
 }
 
 export default function TravelsPage() {
+  const { t } = useLanguage();
+  const travelPlaces = useMemo(() => getTravelPlaces(t), [t]);
+  const totalPhotos = useMemo(() => travelPlaces.reduce((sum, p) => sum + p.photos.length, 0), [travelPlaces]);
+  const continents = useMemo(() => new Set(travelPlaces.map(p => p.continent)).size, [travelPlaces]);
+  const availableYears = useMemo(() => [...new Set(travelPlaces.map(p => p.year))].sort((a, b) => b - a), [travelPlaces]);
+
+  const stats = useMemo(() => [
+    { label: t('travels.stats.destinations'), value: travelPlaces.length, icon: '🌍' },
+    { label: t('travels.stats.continents'), value: continents, icon: '✈️' },
+    { label: t('travels.stats.photos'), value: totalPhotos, icon: '📸' },
+    { label: t('travels.stats.memories'), value: '∞', icon: '💙' },
+  ], [t, travelPlaces.length, continents, totalPhotos]);
+
   const [selectedPlace, setSelectedPlace] = useState<TravelPlace | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const filteredPlaces = useMemo(
     () => selectedYear === null ? travelPlaces : travelPlaces.filter(p => p.year === selectedYear),
-    [selectedYear],
+    [selectedYear, travelPlaces],
   );
 
   const scrollRef = useScrollReveal([filteredPlaces]);
@@ -60,11 +63,11 @@ export default function TravelsPage() {
       <section className="travels-hero">
         <span className="travels-hero-emoji">🧳</span>
         <h1 className="travels-hero-title">
-          The world from{' '}
-          <span className="travels-hero-accent">above</span>
+          {t('travels.hero.title.part1')}{' '}
+          <span className="travels-hero-accent">{t('travels.hero.title.part2')}</span>
         </h1>
         <p className="travels-hero-subtitle">
-          Exploring the world with a drone — one flight at a time. Here are the places I've captured from the sky.
+          {t('travels.hero.subtitle')}
         </p>
       </section>
 
@@ -79,14 +82,14 @@ export default function TravelsPage() {
       </section>
 
       <section className="travels-map-section">
-        <Suspense fallback={<div className="travel-map-loading travels-map-full">Loading map…</div>}>
+        <Suspense fallback={<div className="travel-map-loading travels-map-full">{t('travels.loading-map')}</div>}>
           <TravelMap className="travels-map-full" filterYear={selectedYear} />
         </Suspense>
       </section>
 
       <section className="travels-destinations">
         <h2 className="travels-destinations-title">
-          🗺️ Destinations
+          {t('travels.destinations-title')}
         </h2>
 
         <div className="year-filter">
@@ -94,7 +97,7 @@ export default function TravelsPage() {
             className={`year-chip${selectedYear === null ? ' active' : ''}`}
             onClick={() => setSelectedYear(null)}
           >
-            All
+            {t('travels.year-filter.all')}
           </button>
           {availableYears.map((year) => (
             <button
@@ -131,7 +134,7 @@ export default function TravelsPage() {
                   loading="lazy"
                 />
                 <div className="destination-card-overlay">
-                  <span className="destination-card-view">View gallery →</span>
+                  <span className="destination-card-view">{t('travels.card.view')}</span>
                 </div>
               </div>
               <div className="destination-card-info">
@@ -139,7 +142,7 @@ export default function TravelsPage() {
                   <h3 className="destination-card-name">
                     {place.continentEmoji} {place.name}
                   </h3>
-                  <span className="destination-card-photos">{place.photos.length} photos</span>
+                  <span className="destination-card-photos">{place.photos.length} {t('travels.card.photos')}</span>
                 </div>
                 <p className="destination-card-desc">{place.description}</p>
                 <div className="destination-card-tags">

@@ -11,14 +11,6 @@ export default defineConfig({
         target: 'http://localhost:8788',
         changeOrigin: true,
         timeout: 30000,
-        configure: (proxy) => {
-          proxy.on('error', (err) => {
-            console.error('[Vite Proxy Error]:', err.message);
-          });
-          proxy.on('proxyReq', (proxyReq, req) => {
-            console.log('[Vite Proxy]:', req.method, req.url, '→', proxyReq.path);
-          });
-        },
       },
     },
   },

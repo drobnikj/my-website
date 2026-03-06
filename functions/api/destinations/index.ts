@@ -2,16 +2,10 @@
  * Destinations list endpoint: GET /api/destinations
  */
 
-export interface Env {
-  DB: D1Database;
-  PHOTOS: R2Bucket;
-  ENVIRONMENT?: string;
-}
-
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   try {
     const destinations = await env.DB.prepare(
-      'SELECT * FROM destinations ORDER BY year DESC'
+      'SELECT * FROM destinations ORDER BY visited_at_year DESC'
     ).all();
 
     return Response.json({ data: destinations.results });

@@ -196,7 +196,7 @@ travelPlaces.forEach((place) => {
   ].join(', ');
 
   console.log(
-    `INSERT INTO destinations (id, name_en, name_cs, description_en, description_cs, lat, lng, continent, year) VALUES (${values});`
+    `INSERT INTO destinations (id, name_en, name_cs, description_en, description_cs, lat, lng, continent, visited_at_year) VALUES (${values});`
   );
 });
 
@@ -205,9 +205,10 @@ console.log('-- Insert photos');
 let photoCount = 0;
 travelPlaces.forEach((place) => {
   place.photos.forEach((photoId, index) => {
-    const fullUrl = `/travel-map/${photoId}.webp`;
-    const thumbUrl = `/travel-map/${photoId}-thumb.webp`;
-    const blurUrl = HAS_BLUR.has(photoId) ? `/travel-map/${photoId}-blur.webp` : null;
+    // R2 object keys (no leading slash - these are paths within the R2 bucket)
+    const fullUrl = `${photoId}.webp`;
+    const thumbUrl = `${photoId}-thumb.webp`;
+    const blurUrl = HAS_BLUR.has(photoId) ? `${photoId}-blur.webp` : null;
 
     const values = [
       `'${place.id}-${photoId}'`,

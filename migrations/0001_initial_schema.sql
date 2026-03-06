@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS destinations (
   lat REAL NOT NULL,
   lng REAL NOT NULL,
   continent TEXT NOT NULL,
-  year INTEGER NOT NULL,
+  visited_at_year INTEGER NOT NULL,
+  visited_from DATETIME,
+  visited_to DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -30,7 +32,7 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 
 -- Indexes for efficient lookups
-CREATE INDEX idx_photos_destination_id ON photos(destination_id);
+CREATE INDEX idx_photos_destination ON photos(destination_id);
 CREATE INDEX idx_photos_visible ON photos(is_visible);
-CREATE INDEX idx_destinations_year ON destinations(year);
+CREATE INDEX idx_destinations_year ON destinations(visited_at_year);
 CREATE INDEX idx_destinations_continent ON destinations(continent);

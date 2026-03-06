@@ -2,12 +2,6 @@
  * Single destination endpoint: GET /api/destinations/:id
  */
 
-export interface Env {
-  DB: D1Database;
-  PHOTOS: R2Bucket;
-  ENVIRONMENT?: string;
-}
-
 export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   try {
     const { id } = params;

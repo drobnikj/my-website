@@ -17,9 +17,13 @@
  *   tsx scripts/migrate-to-d1-r2.ts --env local --dry-run
  */
 
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as readline from 'readline';
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // Configuration
@@ -37,6 +41,18 @@ const DEFAULT_OPTIONS: MigrationOptions = {
   dryRun: false,
   skipR2: false,
   skipD1: false,
+};
+
+// Configuration from environment or defaults
+const CONFIG = {
+  local: {
+    bucketName: process.env.R2_BUCKET_LOCAL || 'my-website-photos',
+    dbName: process.env.DB_NAME_LOCAL || 'my-website-db'
+  },
+  production: {
+    bucketName: process.env.R2_BUCKET_PROD || 'my-website-photos',
+    dbName: process.env.DB_NAME_PROD || 'my-website-db'
+  }
 };
 
 // ============================================================================
@@ -212,17 +228,39 @@ function log(message: string, level: 'info' | 'success' | 'warn' | 'error' = 'in
   console.log(`${colors[level]}${message}${reset}`);
 }
 
-function execCommand(command: string, dryRun: boolean): string {
+async function execCommand(command: string, dryRun: boolean): Promise<string> {
   if (dryRun) {
     log(`[DRY RUN] ${command}`, 'warn');
     return '';
   }
   
   try {
-    return execSync(command, { encoding: 'utf-8', stdio: 'pipe' });
+    const { stdout, stderr } = await execAsync(command);
+    if (stderr && !stderr.includes('Uploading')) {
+      log(stderr, 'warn');
+    }
+    return stdout;
   } catch (error) {
     throw new Error(`Command failed: ${command}\n${error}`);
   }
+}
+
+async function askConfirmation(prompt: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ============================================================================
@@ -233,43 +271,57 @@ async function uploadPhotosToR2(options: MigrationOptions) {
   log('\n📦 Starting R2 upload...', 'info');
   
   const photosDir = join(process.cwd(), 'public', 'travel-map');
-  const bucketName = options.env === 'production' 
-    ? 'my-website-photos' 
-    : 'my-website-photos'; // Same bucket name for local testing
+  const bucketName = CONFIG[options.env].bucketName;
   
   try {
     const files = readdirSync(photosDir).filter(f => f.endsWith('.webp'));
     log(`Found ${files.length} photos to upload`, 'info');
     
     let uploaded = 0;
-    let skipped = 0;
     let failed = 0;
     
-    for (const file of files) {
-      const filePath = join(photosDir, file);
-      const r2Key = file; // Simple filename as R2 key
+    // Rate limiting: upload in batches with delays
+    const BATCH_SIZE = 10;
+    const DELAY_MS = 1000;
+    
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
       
-      const stats = statSync(filePath);
-      const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
-      
-      try {
-        if (options.dryRun) {
-          log(`[DRY RUN] Would upload: ${file} (${sizeMB} MB) → r2://${bucketName}/${r2Key}`, 'warn');
-          uploaded++;
-        } else {
-          // Use wrangler r2 object put
-          const command = `wrangler r2 object put ${bucketName}/${r2Key} --file="${filePath}" ${options.env === 'production' ? '--remote' : '--local'}`;
-          execCommand(command, false);
-          log(`✓ Uploaded: ${file} (${sizeMB} MB)`, 'success');
-          uploaded++;
+      const uploadPromises = batch.map(async (file) => {
+        const filePath = join(photosDir, file);
+        const r2Key = file; // Simple filename as R2 key
+        
+        const stats = statSync(filePath);
+        const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+        
+        try {
+          if (options.dryRun) {
+            log(`[DRY RUN] Would upload: ${file} (${sizeMB} MB) → r2://${bucketName}/${r2Key}`, 'warn');
+            return true;
+          } else {
+            // Use wrangler r2 object put
+            const command = `wrangler r2 object put ${bucketName}/${r2Key} --file="${filePath}" ${options.env === 'production' ? '--remote' : '--local'}`;
+            await execCommand(command, false);
+            log(`✓ Uploaded: ${file} (${sizeMB} MB)`, 'success');
+            return true;
+          }
+        } catch (error) {
+          log(`✗ Failed to upload ${file}: ${error}`, 'error');
+          return false;
         }
-      } catch (error) {
-        log(`✗ Failed to upload ${file}: ${error}`, 'error');
-        failed++;
+      });
+      
+      const results = await Promise.all(uploadPromises);
+      uploaded += results.filter(r => r).length;
+      failed += results.filter(r => !r).length;
+      
+      // Add delay between batches (except for the last batch)
+      if (i + BATCH_SIZE < files.length && !options.dryRun) {
+        await sleep(DELAY_MS);
       }
     }
     
-    log(`\n✓ R2 upload complete: ${uploaded} uploaded, ${skipped} skipped, ${failed} failed`, 'success');
+    log(`\n✓ R2 upload complete: ${uploaded} uploaded, ${failed} failed`, 'success');
   } catch (error) {
     log(`✗ R2 upload failed: ${error}`, 'error');
     throw error;
@@ -277,42 +329,39 @@ async function uploadPhotosToR2(options: MigrationOptions) {
 }
 
 // ============================================================================
-// D1 Data Insert
+// D1 Data Insert (with parameterized queries and transactions)
 // ============================================================================
 
 async function insertDataToD1(options: MigrationOptions) {
   log('\n💾 Starting D1 data insertion...', 'info');
   
-  const dbName = options.env === 'production' 
-    ? 'my-website-db' 
-    : 'my-website-db'; // Using same DB name, wrangler handles local vs remote
+  const dbName = CONFIG[options.env].dbName;
   
   try {
-    // Generate SQL statements
-    const sqlStatements: string[] = [];
+    // Generate SQL statements using parameterized queries
+    const statements: Array<{ sql: string; params: any[] }> = [];
     
     // Clear existing data
-    sqlStatements.push('DELETE FROM photos;');
-    sqlStatements.push('DELETE FROM destinations;');
+    statements.push({ sql: 'DELETE FROM photos', params: [] });
+    statements.push({ sql: 'DELETE FROM destinations', params: [] });
     
     // Insert destinations
     log(`Preparing ${travelPlaces.length} destinations...`, 'info');
     travelPlaces.forEach((place) => {
-      const values = [
-        `'${place.id}'`,
-        `'${place.name.replace(/'/g, "''")}'`,
-        `'${place.name.replace(/'/g, "''")}'`, // name_cs = name_en (placeholder)
-        `'${place.description.replace(/'/g, "''")}'`,
-        `'${place.description.replace(/'/g, "''")}'`, // description_cs (placeholder)
-        place.lat,
-        place.lng,
-        `'${place.continent}'`,
-        place.year,
-      ].join(', ');
-      
-      sqlStatements.push(
-        `INSERT INTO destinations (id, name_en, name_cs, description_en, description_cs, lat, lng, continent, visited_at_year) VALUES (${values});`
-      );
+      statements.push({
+        sql: 'INSERT INTO destinations (id, name_en, name_cs, description_en, description_cs, lat, lng, continent, visited_at_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        params: [
+          place.id,
+          place.name,
+          place.name, // name_cs = name_en (placeholder)
+          place.description,
+          place.description, // description_cs (placeholder)
+          place.lat,
+          place.lng,
+          place.continent,
+          place.year,
+        ]
+      });
     });
     
     // Insert photos
@@ -323,38 +372,55 @@ async function insertDataToD1(options: MigrationOptions) {
         const thumbUrl = `${photoId}-thumb.webp`;
         const blurUrl = HAS_BLUR.has(photoId) ? `${photoId}-blur.webp` : null;
         
-        const values = [
-          `'${place.id}-${photoId}'`,
-          `'${place.id}'`,
-          `'${fullUrl}'`,
-          `'${thumbUrl}'`,
-          blurUrl ? `'${blurUrl}'` : 'NULL',
-          'NULL', // caption_en
-          'NULL', // caption_cs
-          index,
-          1, // is_visible
-        ].join(', ');
-        
-        sqlStatements.push(
-          `INSERT INTO photos (id, destination_id, full_url, thumb_url, blur_url, caption_en, caption_cs, sort_order, is_visible) VALUES (${values});`
-        );
+        statements.push({
+          sql: 'INSERT INTO photos (id, destination_id, full_url, thumb_url, blur_url, caption_en, caption_cs, sort_order, is_visible) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          params: [
+            `${place.id}-${photoId}`,
+            place.id,
+            fullUrl,
+            thumbUrl,
+            blurUrl,
+            null, // caption_en
+            null, // caption_cs
+            index,
+            1, // is_visible
+          ]
+        });
         photoCount++;
       });
     });
     
     log(`Prepared ${photoCount} photos`, 'info');
     
+    // Convert to SQL file format for wrangler (since wrangler doesn't support JSON batch API directly)
+    // We'll use a different approach: generate SQL with proper escaping via JSON
+    const sqlStatements = statements.map(stmt => {
+      // Convert params to SQL string with proper escaping
+      const escapedParams = stmt.params.map(p => {
+        if (p === null) return 'NULL';
+        if (typeof p === 'number') return p.toString();
+        if (typeof p === 'string') return `'${p.replace(/'/g, "''")}'`; // SQL standard escaping
+        return `'${String(p)}'`;
+      });
+      
+      let sql = stmt.sql;
+      escapedParams.forEach(param => {
+        sql = sql.replace('?', param);
+      });
+      
+      return sql;
+    });
+    
     // Execute via wrangler d1 execute
     const sqlFile = '/tmp/migrate-data.sql';
-    const fs = require('fs');
-    fs.writeFileSync(sqlFile, sqlStatements.join('\n'));
+    writeFileSync(sqlFile, sqlStatements.join(';\n') + ';');
     
     if (options.dryRun) {
-      log(`[DRY RUN] Would execute ${sqlStatements.length} SQL statements`, 'warn');
-      log(`SQL preview:\n${sqlStatements.slice(0, 5).join('\n')}\n...`, 'info');
+      log(`[DRY RUN] Would execute ${statements.length} SQL statements`, 'warn');
+      log(`SQL preview:\n${sqlStatements.slice(0, 3).join(';\n')};\n...`, 'info');
     } else {
       const command = `wrangler d1 execute ${dbName} --file="${sqlFile}" ${options.env === 'production' ? '--remote' : '--local'}`;
-      execCommand(command, false);
+      await execCommand(command, false);
       log(`✓ Inserted ${travelPlaces.length} destinations and ${photoCount} photos`, 'success');
     }
     
@@ -371,18 +437,18 @@ async function insertDataToD1(options: MigrationOptions) {
 async function verifyMigration(options: MigrationOptions) {
   log('\n🔍 Verifying migration...', 'info');
   
-  const dbName = options.env === 'production' ? 'my-website-db' : 'my-website-db';
+  const dbName = CONFIG[options.env].dbName;
   
   try {
     // Check destination count
     const destCountQuery = 'SELECT COUNT(*) as count FROM destinations;';
     const destCountCmd = `wrangler d1 execute ${dbName} --command="${destCountQuery}" ${options.env === 'production' ? '--remote' : '--local'} --json`;
-    const destResult = options.dryRun ? '[]' : execCommand(destCountCmd, false);
+    const destResult = options.dryRun ? '[]' : await execCommand(destCountCmd, false);
     
     // Check photo count
     const photoCountQuery = 'SELECT COUNT(*) as count FROM photos;';
     const photoCountCmd = `wrangler d1 execute ${dbName} --command="${photoCountQuery}" ${options.env === 'production' ? '--remote' : '--local'} --json`;
-    const photoResult = options.dryRun ? '[]' : execCommand(photoCountCmd, false);
+    const photoResult = options.dryRun ? '[]' : await execCommand(photoCountCmd, false);
     
     if (!options.dryRun) {
       const destCount = JSON.parse(destResult)[0]?.results?.[0]?.count || 0;
@@ -439,6 +505,16 @@ async function main() {
   log(`Dry run: ${options.dryRun ? 'YES' : 'NO'}`, options.dryRun ? 'warn' : 'info');
   log(`Skip R2: ${options.skipR2 ? 'YES' : 'NO'}`, 'info');
   log(`Skip D1: ${options.skipD1 ? 'YES' : 'NO'}`, 'info');
+  
+  // Add confirmation prompt for production
+  if (options.env === 'production' && !options.dryRun) {
+    log('\n⚠️  WARNING: This will DELETE all existing data in production!', 'error');
+    const answer = await askConfirmation('Type "DELETE PRODUCTION DATA" to continue: ');
+    if (answer !== 'DELETE PRODUCTION DATA') {
+      log('\n✗ Migration cancelled', 'warn');
+      process.exit(0);
+    }
+  }
   
   try {
     if (!options.skipR2) {

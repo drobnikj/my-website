@@ -11,6 +11,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+const VALID_CONTINENTS = ['Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Antarctica'];
+
 export const onRequestOptions: PagesFunction = async () => {
   return new Response(null, {
     status: 204,
@@ -21,20 +23,38 @@ export const onRequestOptions: PagesFunction = async () => {
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const url = new URL(request.url);
-    const year = url.searchParams.get('year');
-    const continent = url.searchParams.get('continent');
+    const yearParam = url.searchParams.get('year');
+    const continentParam = url.searchParams.get('continent');
 
     let query = 'SELECT * FROM destinations WHERE 1=1';
     const bindings: (string | number)[] = [];
 
-    if (year) {
+    // Validate and bind year parameter
+    if (yearParam) {
+      const year = parseInt(yearParam, 10);
+      if (isNaN(year) || year < 1900 || year > 2100) {
+        return Response.json(
+          { error: 'Invalid year parameter. Must be a number between 1900 and 2100.' },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
       query += ' AND visited_at_year = ?';
-      bindings.push(parseInt(year, 10));
+      bindings.push(year);
     }
 
-    if (continent) {
+    // Validate and bind continent parameter
+    if (continentParam) {
+      if (!VALID_CONTINENTS.includes(continentParam)) {
+        return Response.json(
+          { 
+            error: 'Invalid continent parameter.',
+            validContinents: VALID_CONTINENTS
+          },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
       query += ' AND continent = ?';
-      bindings.push(continent);
+      bindings.push(continentParam);
     }
 
     query += ' ORDER BY visited_at_year DESC';

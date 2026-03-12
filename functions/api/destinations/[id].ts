@@ -8,6 +8,9 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+// Valid ID format: lowercase letters, numbers, and hyphens
+const ID_REGEX = /^[a-z0-9-]+$/;
+
 export const onRequestOptions: PagesFunction = async () => {
   return new Response(null, {
     status: 204,
@@ -18,6 +21,17 @@ export const onRequestOptions: PagesFunction = async () => {
 export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   try {
     const { id } = params;
+
+    // Validate ID format
+    if (!id || typeof id !== 'string' || !ID_REGEX.test(id)) {
+      return Response.json(
+        { error: 'Invalid destination ID format. Must contain only lowercase letters, numbers, and hyphens.' },
+        { 
+          status: 400,
+          headers: CORS_HEADERS,
+        }
+      );
+    }
 
     const destination = await env.DB.prepare(
       'SELECT * FROM destinations WHERE id = ?'

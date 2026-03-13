@@ -42,9 +42,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       bindings.push(year);
     }
 
-    // Validate and bind continent parameter
+    // Validate and bind continent parameter (case-insensitive)
     if (continentParam) {
-      if (!VALID_CONTINENTS.includes(continentParam)) {
+      const normalizedContinent = VALID_CONTINENTS.find(
+        c => c.toLowerCase() === continentParam.toLowerCase()
+      );
+      
+      if (!normalizedContinent) {
         return Response.json(
           { 
             error: 'Invalid continent parameter.',
@@ -54,7 +58,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         );
       }
       query += ' AND continent = ?';
-      bindings.push(continentParam);
+      bindings.push(normalizedContinent);
     }
 
     query += ' ORDER BY visited_at_year DESC';

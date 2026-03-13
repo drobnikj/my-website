@@ -393,27 +393,49 @@ async function insertDataToD1(options: MigrationOptions) {
     log(`Prepared ${photoCount} photos`, 'info');
     
     // Convert to SQL file format for wrangler (since wrangler doesn't support JSON batch API directly)
-    // We'll use a different approach: generate SQL with proper escaping via JSON
+    // Using improved SQL escaping with proper handling of special characters
     const sqlStatements = statements.map(stmt => {
       // Convert params to SQL string with proper escaping
       const escapedParams = stmt.params.map(p => {
         if (p === null) return 'NULL';
         if (typeof p === 'number') return p.toString();
-        if (typeof p === 'string') return `'${p.replace(/'/g, "''")}'`; // SQL standard escaping
+        if (typeof p === 'string') {
+          // SQL standard escaping: single quotes doubled, no other special char replacement
+          // Validate that string doesn't contain problematic characters that could break escaping
+          if (p.includes('\x00')) {
+            throw new Error('Invalid parameter: contains null byte');
+          }
+          return `'${p.replace(/'/g, "''")}'`;
+        }
         return `'${String(p)}'`;
       });
       
+      // Replace ? placeholders sequentially, but safely by processing from left to right
       let sql = stmt.sql;
-      escapedParams.forEach(param => {
-        sql = sql.replace('?', param);
+      let paramIndex = 0;
+      sql = sql.replace(/\?/g, () => {
+        if (paramIndex >= escapedParams.length) {
+          throw new Error('SQL parameter count mismatch');
+        }
+        return escapedParams[paramIndex++];
       });
+      
+      if (paramIndex !== escapedParams.length) {
+        throw new Error('SQL parameter count mismatch');
+      }
       
       return sql;
     });
     
     // Execute via wrangler d1 execute
+    // Wrap all statements in a transaction for atomicity
     const sqlFile = '/tmp/migrate-data.sql';
-    writeFileSync(sqlFile, sqlStatements.join(';\n') + ';');
+    const transactionSql = [
+      'BEGIN TRANSACTION;',
+      ...sqlStatements,
+      'COMMIT;'
+    ].join('\n');
+    writeFileSync(sqlFile, transactionSql);
     
     if (options.dryRun) {
       log(`[DRY RUN] Would execute ${statements.length} SQL statements`, 'warn');

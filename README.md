@@ -70,7 +70,13 @@ Personal travel photography website with dynamic photo management powered by Clo
 | `npm run db:migrate:local` | Run D1 migrations locally |
 | `npm run db:migrate:prod` | Run D1 migrations in production |
 | `npm run db:seed:local` | Seed local database with test data |
+| `npm run migrate:local` | Migrate photos to R2 and data to D1 (local) |
+| `npm run migrate:local:dry` | Dry-run local migration |
+| `npm run migrate:prod` | Migrate photos to R2 and data to D1 (production) |
+| `npm run migrate:prod:dry` | Dry-run production migration |
 | `npm run lint` | Run ESLint |
+
+**For migration details, see [docs/MIGRATION_GUIDE.md](./docs/MIGRATION_GUIDE.md)**
 
 ## Database Schema
 
@@ -110,8 +116,11 @@ Personal travel photography website with dynamic photo management powered by Clo
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/health` | Health check |
-| `GET` | `/api/destinations` | List all destinations (ordered by year) |
+| `GET` | `/api/destinations` | List all destinations (supports `?year=` and `?continent=` filters) |
 | `GET` | `/api/destinations/:id` | Get destination with photos |
+| `GET` | `/api/photos/:destinationId` | Get photos for a specific destination |
+
+All endpoints support CORS and include proper error handling.
 
 ### Example Response: GET `/api/destinations`
 

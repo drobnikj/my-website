@@ -17,8 +17,9 @@
  *   tsx scripts/migrate-to-d1-r2.ts --env local --dry-run
  */
 
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
+import { readdirSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as readline from 'readline';
@@ -300,7 +301,7 @@ async function uploadPhotosToR2(options: MigrationOptions) {
             return true;
           } else {
             // Use wrangler r2 object put
-            const command = `wrangler r2 object put ${bucketName}/${r2Key} --file="${filePath}" ${options.env === 'production' ? '--remote' : '--local'}`;
+            const command = `wrangler r2 object put "${bucketName}/${r2Key}" --file="${filePath}" ${options.env === 'production' ? '--remote' : '--local'}`;
             await execCommand(command, false);
             log(`✓ Uploaded: ${file} (${sizeMB} MB)`, 'success');
             return true;
@@ -392,19 +393,36 @@ async function insertDataToD1(options: MigrationOptions) {
     
     log(`Prepared ${photoCount} photos`, 'info');
     
-    // Convert to SQL file format for wrangler (since wrangler doesn't support JSON batch API directly)
-    // Using improved SQL escaping with proper handling of special characters
+    // Convert to SQL file format for wrangler CLI
+    // 
+    // ⚠️ SECURITY NOTE: wrangler CLI only accepts raw SQL files, not parameterized queries.
+    // This script uses manual SQL escaping which is inherently less safe than prepared statements.
+    // 
+    // MITIGATION:
+    // - This is a migration script for TRUSTED SOURCE DATA ONLY (hardcoded in travelPlaces array)
+    // - Never use this pattern with user input or external data sources
+    // - For runtime queries in Workers, ALWAYS use env.DB.prepare().bind() (see API endpoints)
+    // 
+    // For production use with external data, consider:
+    // 1. Creating a separate Worker that uses D1 batch API with real prepared statements
+    // 2. Validating all string inputs to reject suspicious patterns
+    // 
     const sqlStatements = statements.map(stmt => {
       // Convert params to SQL string with proper escaping
       const escapedParams = stmt.params.map(p => {
         if (p === null) return 'NULL';
         if (typeof p === 'number') return p.toString();
         if (typeof p === 'string') {
-          // SQL standard escaping: single quotes doubled, no other special char replacement
-          // Validate that string doesn't contain problematic characters that could break escaping
+          // Validate: no null bytes, no excessive special characters
           if (p.includes('\x00')) {
             throw new Error('Invalid parameter: contains null byte');
           }
+          // Additional validation for potentially dangerous patterns
+          const suspiciousPatterns = /(\b(DROP|DELETE|TRUNCATE|ALTER|EXEC|EXECUTE)\b)/i;
+          if (suspiciousPatterns.test(p)) {
+            throw new Error(`Invalid parameter: contains suspicious SQL keyword in "${p}"`);
+          }
+          // SQL standard escaping: single quotes doubled
           return `'${p.replace(/'/g, "''")}'`;
         }
         return `'${String(p)}'`;
@@ -429,7 +447,7 @@ async function insertDataToD1(options: MigrationOptions) {
     
     // Execute via wrangler d1 execute
     // Wrap all statements in a transaction for atomicity
-    const sqlFile = '/tmp/migrate-data.sql';
+    const sqlFile = join(tmpdir(), 'migrate-data.sql');
     const transactionSql = [
       'BEGIN TRANSACTION;',
       ...sqlStatements,
@@ -563,7 +581,5 @@ async function main() {
   }
 }
 
-// Run if executed directly
-if (require.main === module) {
-  main();
-}
+// Run the migration script
+main();

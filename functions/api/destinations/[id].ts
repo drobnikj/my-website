@@ -67,6 +67,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   } catch (error) {
     console.error('Error fetching destination:', error);
     
+    // Check if error is due to missing D1 binding
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('DB is not defined') || errorMessage.includes('Cannot read') || !env.DB) {
+      return Response.json(
+        {
+          error: 'Database binding not configured',
+          message: 'D1 database binding (DB) is not available. To fix this:\n\n' +
+                   '1. Go to Cloudflare dashboard → Workers & Pages\n' +
+                   '2. Select "my-website" project\n' +
+                   '3. Go to Settings → Functions → D1 database bindings\n' +
+                   '4. Add binding: Variable name = "DB", D1 database = "my-website-db"\n' +
+                   '5. Do this for BOTH Production AND Preview environments\n' +
+                   '6. Trigger a new deployment (push a commit)\n\n' +
+                   'See README.md for detailed setup instructions.',
+          docs: 'https://developers.cloudflare.com/pages/functions/bindings/#d1-databases'
+        },
+        { status: 503, headers: CORS_HEADERS }
+      );
+    }
+    
     const isDevelopment = env.ENVIRONMENT === 'development' || !env.ENVIRONMENT;
     
     return Response.json(

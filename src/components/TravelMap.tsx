@@ -4,10 +4,11 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
-import { getTravelPlaces } from '../data/travels';
 import type { TravelPlace } from '../data/travels';
 import TravelModal from './TravelModal';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useDestinations } from '../hooks/useDestinations';
+import { transformDestinationsToPlaces } from '../api/transformers';
 
 interface TravelMapProps {
   className?: string;
@@ -31,8 +32,16 @@ function getTileUrl(): string {
 }
 
 export default function TravelMap({ className, filterYear }: TravelMapProps) {
-  const { t } = useLanguage();
-  const travelPlaces = useMemo(() => getTravelPlaces(t), [t]);
+  const { language } = useLanguage();
+  const { data: destinations } = useDestinations(
+    filterYear ? { year: filterYear } : undefined,
+  );
+
+  const travelPlaces = useMemo(() => {
+    if (!destinations) return [];
+    return transformDestinationsToPlaces(destinations, language);
+  }, [destinations, language]);
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -53,7 +62,8 @@ export default function TravelMap({ className, filterYear }: TravelMapProps) {
     });
 
     const tileLayer = L.tileLayer(getTileUrl(), {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 20,
     }).addTo(map);
@@ -66,7 +76,10 @@ export default function TravelMap({ className, filterYear }: TravelMapProps) {
         tileLayerRef.current.setUrl(getTileUrl());
       }
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
 
     return () => {
       observer.disconnect();
@@ -99,9 +112,7 @@ export default function TravelMap({ className, filterYear }: TravelMapProps) {
       showCoverageOnHover: false,
     });
 
-    const places = filterYear == null ? travelPlaces : travelPlaces.filter(p => p.year === filterYear);
-
-    for (const place of places) {
+    for (const place of travelPlaces) {
       const marker = L.marker([place.lat, place.lng], {
         icon: createPhotoIcon(place.thumbs[0]),
       });
@@ -111,7 +122,7 @@ export default function TravelMap({ className, filterYear }: TravelMapProps) {
 
     map.addLayer(clusterGroup);
     clusterGroupRef.current = clusterGroup;
-  }, [filterYear, travelPlaces]);
+  }, [travelPlaces]);
 
   return (
     <>

@@ -55,12 +55,20 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
       .bind(id)
       .all();
 
+    // Convert R2 keys to full URLs
+    const photosWithUrls = (photos.results as any[]).map((photo) => ({
+      ...photo,
+      full_url: `/api/images/${photo.full_url}`,
+      thumb_url: `/api/images/${photo.thumb_url}`,
+      blur_url: photo.blur_url ? `/api/images/${photo.blur_url}` : null,
+    }));
+
     return Response.json(
       {
         data: {
           ...destination,
           year: (destination as any).visited_at_year, // Map visited_at_year to year for frontend
-          photos: photos.results,
+          photos: photosWithUrls,
         },
       },
       { headers: CORS_HEADERS }

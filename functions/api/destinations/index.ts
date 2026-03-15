@@ -68,17 +68,25 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       ? await stmt.bind(...bindings).all()
       : await stmt.all();
 
-    // Fetch photos for each destination
+    // Fetch photos for each destination and construct full URLs
     const destinationsWithPhotos = await Promise.all(
       (destinations.results as any[]).map(async (dest) => {
         const photos = await env.DB.prepare(
           'SELECT * FROM photos WHERE destination_id = ? AND is_visible = 1 ORDER BY sort_order ASC'
         ).bind(dest.id).all();
 
+        // Convert R2 keys to full URLs
+        const photosWithUrls = (photos.results as any[]).map((photo) => ({
+          ...photo,
+          full_url: `/api/images/${photo.full_url}`,
+          thumb_url: `/api/images/${photo.thumb_url}`,
+          blur_url: photo.blur_url ? `/api/images/${photo.blur_url}` : null,
+        }));
+
         return {
           ...dest,
           year: dest.visited_at_year, // Map visited_at_year to year for frontend
-          photos: photos.results || [],
+          photos: photosWithUrls,
         };
       })
     );

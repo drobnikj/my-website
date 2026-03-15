@@ -68,8 +68,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       ? await stmt.bind(...bindings).all()
       : await stmt.all();
 
+    // Fetch photos for each destination
+    const destinationsWithPhotos = await Promise.all(
+      (destinations.results as any[]).map(async (dest) => {
+        const photos = await env.DB.prepare(
+          'SELECT * FROM photos WHERE destination_id = ? AND is_visible = 1 ORDER BY sort_order ASC'
+        ).bind(dest.id).all();
+
+        return {
+          ...dest,
+          year: dest.visited_at_year, // Map visited_at_year to year for frontend
+          photos: photos.results || [],
+        };
+      })
+    );
+
     return Response.json(
-      { data: destinations.results },
+      { data: destinationsWithPhotos },
       { headers: CORS_HEADERS }
     );
   } catch (error) {

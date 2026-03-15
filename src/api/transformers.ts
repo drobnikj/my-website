@@ -25,8 +25,9 @@ export function transformDestinationToPlace(
   const name = language === 'cs' ? destination.name_cs : destination.name_en;
   const description = language === 'cs' ? destination.description_cs : destination.description_en;
 
-  const photos = 'photos' in destination ? destination.photos : [];
-  const visiblePhotos = photos.filter(p => p.is_visible === 1);
+  // Photos are already included in the API response (filtered by is_visible = 1)
+  const photos = destination.photos || [];
+  const visiblePhotos = photos; // Already filtered by API
 
   // Determine continent emoji (fallback to globe)
   let continentEmoji = CONTINENT_EMOJI[destination.continent] || '🌍';

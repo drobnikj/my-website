@@ -59,6 +59,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
       {
         data: {
           ...destination,
+          year: (destination as any).visited_at_year, // Map visited_at_year to year for frontend
           photos: photos.results,
         },
       },

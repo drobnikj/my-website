@@ -11,7 +11,8 @@ export interface DestinationResponse {
   lat: number;
   lng: number;
   continent: string;
-  year: number;
+  year: number; // Mapped from visited_at_year by API
+  photos?: PhotoResponse[]; // Included in list endpoint
   created_at?: string;
   updated_at?: string;
 }

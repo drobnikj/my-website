@@ -64,6 +64,8 @@ const translations: Record<Language, Record<string, string>> = {
     'travels.card.photos': 'photos',
     'travels.loading': 'Loading…',
     'travels.loading-map': 'Loading map…',
+    'travels.loading-destinations': 'Loading destinations…',
+    'travels.error.title': 'Failed to load destinations',
 
     // Travel places
     'travel.iceland.name': 'Iceland',
@@ -152,6 +154,8 @@ const translations: Record<Language, Record<string, string>> = {
     'travels.card.photos': 'fotek',
     'travels.loading': 'Načítání…',
     'travels.loading-map': 'Načítání mapy…',
+    'travels.loading-destinations': 'Načítání destinací…',
+    'travels.error.title': 'Nepodařilo se načíst destinace',
 
     // Travel places
     'travel.iceland.name': 'Island',

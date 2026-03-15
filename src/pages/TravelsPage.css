@@ -318,3 +318,38 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Loading & Error States ===== */
+.destinations-loading {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+}
+
+.travel-error {
+  text-align: center;
+  padding: 80px 24px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.travel-error-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 24px;
+  opacity: 0.6;
+}
+
+.travel-error h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.travel-error p {
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}

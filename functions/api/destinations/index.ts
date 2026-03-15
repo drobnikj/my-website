@@ -68,12 +68,55 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       ? await stmt.bind(...bindings).all()
       : await stmt.all();
 
+    // Fetch photos for each destination and construct full URLs
+    const destinationsWithPhotos = await Promise.all(
+      (destinations.results as any[]).map(async (dest) => {
+        const photos = await env.DB.prepare(
+          'SELECT * FROM photos WHERE destination_id = ? AND is_visible = 1 ORDER BY sort_order ASC'
+        ).bind(dest.id).all();
+
+        // Convert R2 keys to full URLs
+        const photosWithUrls = (photos.results as any[]).map((photo) => ({
+          ...photo,
+          full_url: `/api/images/${photo.full_url}`,
+          thumb_url: `/api/images/${photo.thumb_url}`,
+          blur_url: photo.blur_url ? `/api/images/${photo.blur_url}` : null,
+        }));
+
+        return {
+          ...dest,
+          year: dest.visited_at_year, // Map visited_at_year to year for frontend
+          photos: photosWithUrls,
+        };
+      })
+    );
+
     return Response.json(
-      { data: destinations.results },
+      { data: destinationsWithPhotos },
       { headers: CORS_HEADERS }
     );
   } catch (error) {
     console.error('Error fetching destinations:', error);
+    
+    // Check if error is due to missing D1 binding
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('DB is not defined') || errorMessage.includes('Cannot read') || !env.DB) {
+      return Response.json(
+        {
+          error: 'Database binding not configured',
+          message: 'D1 database binding (DB) is not available. To fix this:\n\n' +
+                   '1. Go to Cloudflare dashboard → Workers & Pages\n' +
+                   '2. Select "my-website" project\n' +
+                   '3. Go to Settings → Functions → D1 database bindings\n' +
+                   '4. Add binding: Variable name = "DB", D1 database = "my-website-db"\n' +
+                   '5. Do this for BOTH Production AND Preview environments\n' +
+                   '6. Trigger a new deployment (push a commit)\n\n' +
+                   'See README.md for detailed setup instructions.',
+          docs: 'https://developers.cloudflare.com/pages/functions/bindings/#d1-databases'
+        },
+        { status: 503, headers: CORS_HEADERS }
+      );
+    }
     
     const isDevelopment = env.ENVIRONMENT === 'development' || !env.ENVIRONMENT;
     

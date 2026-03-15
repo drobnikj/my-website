@@ -20,6 +20,7 @@
     "migrate:prod:dry": "tsx scripts/migrate-to-d1-r2.ts --env production --dry-run"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
     "react": "^19.2.0",

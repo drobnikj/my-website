@@ -3,6 +3,8 @@
  * Multipart upload → process image → upload to R2 (full, thumb, blur) → insert to D1
  */
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 interface UploadPhotoInput {
   destination_id: string;
   caption_en?: string;
@@ -22,7 +24,7 @@ function generateBlurPlaceholder(): string {
 }
 
 /**
- * Generate thumbnail from image
+ * Process image - placeholder for actual image processing
  * Note: Cloudflare Workers don't have built-in image processing
  * Options:
  * 1. Use Cloudflare Images API (paid service)
@@ -51,10 +53,13 @@ async function processImage(
 }
 
 /**
- * Parse multipart form data
+ * Parse multipart form data with size limit
  * Returns files and fields
  */
-async function parseMultipartForm(request: Request): Promise<{
+async function parseMultipartForm(
+  request: Request,
+  maxSize: number
+): Promise<{
   files: Map<string, { name: string; data: ArrayBuffer; type: string }>;
   fields: Map<string, string>;
 }> {
@@ -69,6 +74,11 @@ async function parseMultipartForm(request: Request): Promise<{
 
   for (const [key, value] of formData.entries()) {
     if (value instanceof File) {
+      // Check file size before reading into memory
+      if (value.size > maxSize) {
+        throw new Error(`File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`);
+      }
+      
       files.set(key, {
         name: value.name,
         data: await value.arrayBuffer(),
@@ -83,9 +93,11 @@ async function parseMultipartForm(request: Request): Promise<{
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+  let uploadedKeys: string[] = [];
+  
   try {
-    // Parse multipart form
-    const { files, fields } = await parseMultipartForm(request);
+    // Parse multipart form with size limit
+    const { files, fields } = await parseMultipartForm(request, MAX_FILE_SIZE);
 
     // Validate required fields
     const destination_id = fields.get('destination_id');
@@ -127,59 +139,92 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       );
     }
 
-    // Generate unique ID for photo
-    const photoId = `${destination_id}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    // Generate unique ID using crypto.randomUUID() to prevent race conditions
+    const photoId = crypto.randomUUID();
     const ext = imageFile.name.split('.').pop() || 'jpg';
 
     // Process image (generate full, thumb, blur variants)
     const processed = await processImage(imageFile.data, imageFile.name);
 
-    // Upload to R2
+    // Generate R2 keys WITHOUT leading slash (to match /api/images/[key].ts route)
     const fullKey = `${destination_id}/${photoId}.${ext}`;
     const thumbKey = `${destination_id}/${photoId}-thumb.${ext}`;
-    const blurKey = `${destination_id}/${photoId}-blur.${ext}`;
 
-    await Promise.all([
-      env.PHOTOS.put(fullKey, processed.full, {
-        httpMetadata: {
-          contentType: imageFile.type,
-        },
-      }),
-      env.PHOTOS.put(thumbKey, processed.thumb, {
-        httpMetadata: {
-          contentType: imageFile.type,
-        },
-      }),
-      // Store blur as base64 in D1, not R2 (it's tiny)
-    ]);
+    // Upload to R2
+    try {
+      await Promise.all([
+        env.PHOTOS.put(fullKey, processed.full, {
+          httpMetadata: {
+            contentType: imageFile.type,
+          },
+        }),
+        env.PHOTOS.put(thumbKey, processed.thumb, {
+          httpMetadata: {
+            contentType: imageFile.type,
+          },
+        }),
+      ]);
+      
+      uploadedKeys = [fullKey, thumbKey];
+    } catch (r2Error) {
+      console.error('R2 upload failed:', r2Error);
+      throw new Error('Failed to upload images to storage');
+    }
 
-    // Parse optional fields
+    // Parse optional fields with validation
     const caption_en = fields.get('caption_en') || null;
     const caption_cs = fields.get('caption_cs') || null;
-    const sort_order = parseInt(fields.get('sort_order') || '0', 10);
+    
+    const sortOrderStr = fields.get('sort_order') || '0';
+    const sort_order = parseInt(sortOrderStr, 10);
+    if (isNaN(sort_order)) {
+      return Response.json(
+        { error: 'sort_order must be a valid integer' },
+        { status: 400 }
+      );
+    }
+    
     const is_visible = fields.get('is_visible') === 'false' ? 0 : 1;
 
-    // Insert to D1
+    // Insert to D1 (with cleanup on failure)
     const now = new Date().toISOString();
-    await env.DB.prepare(`
-      INSERT INTO photos (
-        id, destination_id, full_url, thumb_url, blur_url,
-        caption_en, caption_cs, sort_order, is_visible, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-      .bind(
-        photoId,
-        destination_id,
-        fullKey,
-        thumbKey,
-        processed.blur, // Store blur as data URL
-        caption_en,
-        caption_cs,
-        sort_order,
-        is_visible,
-        now
-      )
-      .run();
+    try {
+      await env.DB.prepare(`
+        INSERT INTO photos (
+          id, destination_id, full_url, thumb_url, blur_url,
+          caption_en, caption_cs, sort_order, is_visible, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+        .bind(
+          photoId,
+          destination_id,
+          fullKey,
+          thumbKey,
+          processed.blur, // Store blur as data URL
+          caption_en,
+          caption_cs,
+          sort_order,
+          is_visible,
+          now
+        )
+        .run();
+    } catch (dbError) {
+      console.error('D1 insert failed after R2 upload:', dbError);
+      
+      // Cleanup orphaned R2 files
+      try {
+        await Promise.all(
+          uploadedKeys.map(key => env.PHOTOS.delete(key).catch(err => {
+            console.error(`Failed to cleanup R2 object ${key}:`, err);
+          }))
+        );
+        console.log('Cleaned up orphaned R2 files:', uploadedKeys);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup R2 files:', cleanupError);
+      }
+      
+      throw new Error('Failed to save photo metadata');
+    }
 
     // Fetch created photo
     const created = await env.DB.prepare(

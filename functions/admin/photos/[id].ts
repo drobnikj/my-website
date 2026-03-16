@@ -4,11 +4,33 @@
  * - DELETE /admin/photos/:id — delete from R2 + D1
  */
 
+// Allowlist for updatable columns to prevent SQL injection
+const ALLOWED_COLUMNS = new Set([
+  'caption_en',
+  'caption_cs',
+  'sort_order',
+  'is_visible',
+]);
+
 interface UpdatePhotoInput {
   caption_en?: string | null;
   caption_cs?: string | null;
   sort_order?: number;
   is_visible?: boolean;
+}
+
+/**
+ * Check if a URL is stored as a data URL (not an R2 key)
+ */
+function isDataUrl(url: string | null | undefined): boolean {
+  return typeof url === 'string' && url.startsWith('data:');
+}
+
+/**
+ * Check if a URL is an R2 key (not a data URL)
+ */
+function isR2Key(url: string | null | undefined): boolean {
+  return typeof url === 'string' && url.length > 0 && !url.startsWith('data:');
 }
 
 /**
@@ -60,7 +82,7 @@ export const onRequestPatch: PagesFunction<Env> = async ({ params, request, env 
       );
     }
 
-    // Build dynamic UPDATE query
+    // Build dynamic UPDATE query with column allowlist
     const updates: string[] = [];
     const bindings: (string | number | null)[] = [];
 
@@ -86,6 +108,18 @@ export const onRequestPatch: PagesFunction<Env> = async ({ params, request, env 
         { error: 'No fields to update' },
         { status: 400 }
       );
+    }
+
+    // Verify all column names are in allowlist (defense in depth)
+    for (const update of updates) {
+      const columnName = update.split(' = ')[0];
+      if (!ALLOWED_COLUMNS.has(columnName)) {
+        console.error(`Attempted to update non-allowlisted column: ${columnName}`);
+        return Response.json(
+          { error: 'Invalid field' },
+          { status: 400 }
+        );
+      }
     }
 
     // Add id to bindings (for WHERE clause)
@@ -150,16 +184,29 @@ export const onRequestDelete: PagesFunction<Env> = async ({ params, env }) => {
 
     const photoData = photo as any;
 
-    // Delete from R2
+    // Delete from R2 (only actual R2 keys, not data URLs)
     const r2Deletions: Promise<void>[] = [];
-    if (photoData.full_url && !photoData.full_url.startsWith('data:')) {
-      r2Deletions.push(env.PHOTOS.delete(photoData.full_url));
+    
+    if (isR2Key(photoData.full_url)) {
+      r2Deletions.push(
+        env.PHOTOS.delete(photoData.full_url).catch(err => {
+          console.error(`Failed to delete R2 object ${photoData.full_url}:`, err);
+        })
+      );
     }
-    if (photoData.thumb_url && !photoData.thumb_url.startsWith('data:')) {
-      r2Deletions.push(env.PHOTOS.delete(photoData.thumb_url));
+    if (isR2Key(photoData.thumb_url)) {
+      r2Deletions.push(
+        env.PHOTOS.delete(photoData.thumb_url).catch(err => {
+          console.error(`Failed to delete R2 object ${photoData.thumb_url}:`, err);
+        })
+      );
     }
-    if (photoData.blur_url && !photoData.blur_url.startsWith('data:')) {
-      r2Deletions.push(env.PHOTOS.delete(photoData.blur_url));
+    if (isR2Key(photoData.blur_url)) {
+      r2Deletions.push(
+        env.PHOTOS.delete(photoData.blur_url).catch(err => {
+          console.error(`Failed to delete R2 object ${photoData.blur_url}:`, err);
+        })
+      );
     }
 
     await Promise.all(r2Deletions);

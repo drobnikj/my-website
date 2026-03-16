@@ -31,16 +31,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
     const input: CreateDestinationInput = await request.json();
 
-    // Validate required fields
+    // Validate required fields with proper type checking
     const errors: string[] = [];
     
     if (!input.id || !/^[a-z0-9-]+$/.test(input.id)) {
       errors.push('id must contain only lowercase letters, numbers, and hyphens');
     }
-    if (!input.name_en?.trim()) errors.push('name_en is required');
-    if (!input.name_cs?.trim()) errors.push('name_cs is required');
-    if (!input.description_en?.trim()) errors.push('description_en is required');
-    if (!input.description_cs?.trim()) errors.push('description_cs is required');
+    
+    // Type-safe string validation
+    if (typeof input.name_en !== 'string' || !input.name_en.trim()) {
+      errors.push('name_en is required and must be a non-empty string');
+    }
+    if (typeof input.name_cs !== 'string' || !input.name_cs.trim()) {
+      errors.push('name_cs is required and must be a non-empty string');
+    }
+    if (typeof input.description_en !== 'string' || !input.description_en.trim()) {
+      errors.push('description_en is required and must be a non-empty string');
+    }
+    if (typeof input.description_cs !== 'string' || !input.description_cs.trim()) {
+      errors.push('description_cs is required and must be a non-empty string');
+    }
     
     if (typeof input.lat !== 'number' || input.lat < -90 || input.lat > 90) {
       errors.push('lat must be a number between -90 and 90');
@@ -80,36 +90,71 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
     // Insert new destination
     const now = new Date().toISOString();
-    await env.DB.prepare(`
-      INSERT INTO destinations (
-        id, name_en, name_cs, description_en, description_cs,
-        lat, lng, continent, visited_at_year,
-        visited_from, visited_to, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-      .bind(
-        input.id,
-        input.name_en.trim(),
-        input.name_cs.trim(),
-        input.description_en.trim(),
-        input.description_cs.trim(),
-        input.lat,
-        input.lng,
-        input.continent,
-        input.visited_at_year,
-        input.visited_from || null,
-        input.visited_to || null,
-        now,
-        now
-      )
-      .run();
+    
+    try {
+      await env.DB.prepare(`
+        INSERT INTO destinations (
+          id, name_en, name_cs, description_en, description_cs,
+          lat, lng, continent, visited_at_year,
+          visited_from, visited_to, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+        .bind(
+          input.id,
+          input.name_en.trim(),
+          input.name_cs.trim(),
+          input.description_en.trim(),
+          input.description_cs.trim(),
+          input.lat,
+          input.lng,
+          input.continent,
+          input.visited_at_year,
+          input.visited_from || null,
+          input.visited_to || null,
+          now,
+          now
+        )
+        .run();
+    } catch (insertError) {
+      console.error('Insert failed:', insertError);
+      throw insertError;
+    }
 
-    // Fetch the created destination
-    const created = await env.DB.prepare(
-      'SELECT * FROM destinations WHERE id = ?'
-    )
-      .bind(input.id)
-      .first();
+    // Fetch the created destination with better error handling
+    let created;
+    try {
+      created = await env.DB.prepare(
+        'SELECT * FROM destinations WHERE id = ?'
+      )
+        .bind(input.id)
+        .first();
+    } catch (selectError) {
+      console.error('Select after insert failed:', selectError);
+      // Insert succeeded but select failed - return minimal response
+      return Response.json(
+        {
+          data: {
+            id: input.id,
+            message: 'Destination created successfully but could not retrieve full data',
+          }
+        },
+        { status: 201 }
+      );
+    }
+
+    if (!created) {
+      // Shouldn't happen but handle gracefully
+      console.error('Destination not found after insert');
+      return Response.json(
+        {
+          data: {
+            id: input.id,
+            message: 'Destination created successfully but could not retrieve full data',
+          }
+        },
+        { status: 201 }
+      );
+    }
 
     return Response.json(
       { data: created },

@@ -6,8 +6,21 @@ This document describes the admin API endpoints for managing destinations and ph
 
 All admin endpoints (`/admin/*`) require authentication via one of:
 
-1. **Cloudflare Access JWT** — Cookie-based authentication via Cloudflare Access
-2. **API Key** — Bearer token in `Authorization` header
+1. **Cloudflare Access JWT** — Cookie-based authentication via Cloudflare Access with full signature verification
+2. **API Key** — Bearer token in `Authorization` header (timing-safe comparison)
+
+### JWT Verification
+
+The middleware implements proper JWT signature verification:
+- Fetches Cloudflare's public keys from `https://{team}.cloudflareaccess.com/cdn-cgi/access/certs`
+- Caches certificates for 1 hour to reduce overhead
+- Verifies JWT signature using Web Crypto API with RSA-SHA256
+- Validates token expiration
+- Uses base64url decoding (handles `-`, `_`, and missing padding)
+
+### API Key Security
+
+API key verification uses timing-safe comparison (`crypto.subtle.timingSafeEqual`) to prevent timing attacks.
 
 ### Environment Variables
 
@@ -78,12 +91,14 @@ Create a new destination.
 **Validation:**
 
 - `id`: lowercase letters, numbers, hyphens only (required)
-- `name_en`, `name_cs`, `description_en`, `description_cs`: non-empty strings (required)
+- `name_en`, `name_cs`, `description_en`, `description_cs`: non-empty strings (required, type-checked)
 - `lat`: number between -90 and 90 (required)
 - `lng`: number between -180 and 180 (required)
 - `continent`: one of: Africa, Asia, Europe, North America, South America, Oceania, Antarctica (required)
 - `visited_at_year`: integer between 1900 and 2100 (required)
 - `visited_from`, `visited_to`: ISO date strings (optional)
+
+**Security:** Column names validated against allowlist to prevent SQL injection.
 
 #### PATCH /admin/destinations/:id
 
@@ -112,6 +127,11 @@ Update destination fields. Only provided fields are updated.
 }
 ```
 
+**Security:** 
+- String fields validated with explicit `typeof` checks before calling `.trim()`
+- Column names validated against allowlist to prevent SQL injection
+- R2 deletions include error logging for silent failures
+
 #### DELETE /admin/destinations/:id
 
 Delete destination and cascade delete all associated photos from D1 and R2.
@@ -125,11 +145,15 @@ Delete destination and cascade delete all associated photos from D1 and R2.
 }
 ```
 
+**Notes:**
+- Skips R2 deletion for data URLs (only deletes actual R2 keys)
+- Logs R2 deletion failures for debugging
+
 ### Photos
 
 #### POST /admin/photos/upload
 
-Upload a new photo with automatic thumbnail and blur variant generation.
+Upload a new photo with automatic processing.
 
 **Request:** Multipart form data
 
@@ -156,10 +180,10 @@ curl -X POST https://example.com/admin/photos/upload \
 ```json
 {
   "data": {
-    "id": "bali-1710501000-abc123",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "destination_id": "bali",
-    "full_url": "bali/bali-1710501000-abc123.jpg",
-    "thumb_url": "bali/bali-1710501000-abc123-thumb.jpg",
+    "full_url": "bali/550e8400-e29b-41d4-a716-446655440000.jpg",
+    "thumb_url": "bali/550e8400-e29b-41d4-a716-446655440000-thumb.jpg",
     "blur_url": "data:image/svg+xml;base64,...",
     "caption_en": "Beautiful sunset",
     "caption_cs": null,
@@ -172,14 +196,19 @@ curl -X POST https://example.com/admin/photos/upload \
 
 **Image Processing:**
 
-The endpoint automatically generates:
-- **Full image**: Original uploaded image
-- **Thumbnail**: Resized version (~400px width)
-- **Blur placeholder**: Tiny base64-encoded blur image for lazy loading
+⚠️ **Current implementation:** Uploads the original image for both full and thumbnail variants. The blur placeholder is a simple SVG.
 
-⚠️ **Note:** Current implementation uses basic processing. For production, consider integrating:
+For production, consider integrating:
 - [Cloudflare Images](https://developers.cloudflare.com/images/) for automatic resizing
 - [sharp.wasm](https://github.com/cloudflare/images) for advanced processing in Workers
+
+**Security & Robustness:**
+- **File size limit:** 10MB maximum (enforced before reading into memory)
+- **Unique IDs:** Uses `crypto.randomUUID()` to prevent race conditions
+- **Orphan cleanup:** If D1 insert fails after R2 upload, automatically deletes uploaded files
+- **Validation:** `sort_order` parsing checks for NaN
+- **R2 keys:** Generated without leading `/` to match `/api/images/[key].ts` route pattern
+- **blur_url:** Stored as data URL (not R2 key) for efficiency
 
 #### PATCH /admin/photos/:id
 
@@ -201,7 +230,7 @@ Update photo metadata (caption, sort order, visibility).
 ```json
 {
   "data": {
-    "id": "bali-1710501000-abc123",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "caption_en": "Updated caption",
     "sort_order": 5,
     "is_visible": 0,
@@ -209,6 +238,8 @@ Update photo metadata (caption, sort order, visibility).
   }
 }
 ```
+
+**Security:** Column names validated against allowlist to prevent SQL injection.
 
 #### DELETE /admin/photos/:id
 
@@ -221,6 +252,11 @@ Delete photo from R2 storage and D1 database.
   "message": "Photo deleted"
 }
 ```
+
+**Notes:**
+- Checks for data URLs vs R2 keys before attempting deletion
+- Logs R2 deletion failures for debugging
+- Skips R2 delete for `blur_url` if stored as data URL
 
 ## Error Responses
 
@@ -318,6 +354,11 @@ curl -X POST http://localhost:8788/admin/destinations \
 
 ## Security Notes
 
+- **JWT verification:** Full signature validation using Cloudflare's public keys (cached for 1 hour)
+- **API key comparison:** Timing-safe to prevent timing attacks
+- **SQL injection protection:** Column allowlists on all dynamic queries
+- **Type safety:** Explicit type checks before string operations
+- **File size limits:** 10MB maximum to prevent memory exhaustion
 - **Never commit API keys** to version control
 - Use strong, randomly generated API keys (minimum 32 characters)
 - Rotate API keys regularly
@@ -327,7 +368,6 @@ curl -X POST http://localhost:8788/admin/destinations \
 
 ## Future Improvements
 
-- [ ] Implement proper JWT verification with Cloudflare Access public keys
 - [ ] Add rate limiting to prevent abuse
 - [ ] Integrate Cloudflare Images API for better image processing
 - [ ] Add batch operations (bulk upload, bulk delete)

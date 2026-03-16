@@ -3,16 +3,115 @@
  * Validates Cloudflare Access JWT or API key
  */
 
-interface Env {
-  DB: D1Database;
-  PHOTOS: R2Bucket;
-  ENVIRONMENT?: string;
-  CF_ACCESS_TEAM_DOMAIN?: string;
-  ADMIN_API_KEY?: string;
+// JWT public keys cache
+interface CertsCache {
+  keys: JsonWebKey[];
+  expiresAt: number;
+}
+
+let certsCache: CertsCache | null = null;
+const CERTS_TTL = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Decode base64url string (handles - and _ chars, missing padding)
+ */
+function base64UrlDecode(str: string): string {
+  // Convert base64url to base64
+  let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  
+  // Add padding if missing
+  const pad = base64.length % 4;
+  if (pad) {
+    base64 += '='.repeat(4 - pad);
+  }
+  
+  return atob(base64);
 }
 
 /**
- * Verify Cloudflare Access JWT token
+ * Fetch Cloudflare Access public keys with caching
+ */
+async function fetchCerts(teamDomain: string): Promise<JsonWebKey[]> {
+  const now = Date.now();
+  
+  // Return cached certs if valid
+  if (certsCache && certsCache.expiresAt > now) {
+    return certsCache.keys;
+  }
+  
+  // Fetch fresh certs
+  const certsUrl = `https://${teamDomain}.cloudflareaccess.com/cdn-cgi/access/certs`;
+  const response = await fetch(certsUrl);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Cloudflare certs: ${response.status}`);
+  }
+  
+  const data = await response.json() as { keys: JsonWebKey[] };
+  
+  // Cache the keys
+  certsCache = {
+    keys: data.keys,
+    expiresAt: now + CERTS_TTL,
+  };
+  
+  return data.keys;
+}
+
+/**
+ * Verify JWT signature using Cloudflare's public keys
+ */
+async function verifyJwtSignature(
+  token: string,
+  publicKeys: JsonWebKey[]
+): Promise<boolean> {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  
+  // Parse header to get key ID
+  const headerJson = base64UrlDecode(parts[0]);
+  const header = JSON.parse(headerJson) as { kid?: string; alg?: string };
+  
+  if (!header.kid || !header.alg) return false;
+  
+  // Find matching public key
+  const publicKey = publicKeys.find(key => key.kid === header.kid);
+  if (!publicKey) return false;
+  
+  try {
+    // Import public key
+    const cryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      publicKey,
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
+      },
+      false,
+      ['verify']
+    );
+    
+    // Verify signature
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`${parts[0]}.${parts[1]}`);
+    const signature = Uint8Array.from(atob(parts[2].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    
+    const isValid = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      cryptoKey,
+      signature,
+      data
+    );
+    
+    return isValid;
+  } catch (error) {
+    console.error('Signature verification failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Verify Cloudflare Access JWT token with proper signature verification
  */
 async function verifyCloudflareAccessToken(
   request: Request,
@@ -31,18 +130,19 @@ async function verifyCloudflareAccessToken(
   if (!cfAuth) return false;
 
   try {
-    // Verify JWT with Cloudflare's public keys
-    const certsUrl = `https://${teamDomain}.cloudflareaccess.com/cdn-cgi/access/certs`;
-    const certsResponse = await fetch(certsUrl);
-    const certs = await certsResponse.json();
-
-    // For production: implement full JWT verification with public keys
-    // For now: basic JWT structure validation
+    // Fetch public keys (with caching)
+    const publicKeys = await fetchCerts(teamDomain);
+    
+    // Verify signature
+    const isValidSignature = await verifyJwtSignature(cfAuth, publicKeys);
+    if (!isValidSignature) return false;
+    
+    // Parse payload (base64url-encoded)
     const parts = cfAuth.split('.');
     if (parts.length !== 3) return false;
-
-    // Decode payload (basic validation)
-    const payload = JSON.parse(atob(parts[1]));
+    
+    const payloadJson = base64UrlDecode(parts[1]);
+    const payload = JSON.parse(payloadJson) as { exp?: number };
     
     // Check expiration
     if (payload.exp && payload.exp < Date.now() / 1000) {
@@ -57,9 +157,9 @@ async function verifyCloudflareAccessToken(
 }
 
 /**
- * Verify API key from Authorization header
+ * Verify API key from Authorization header using timing-safe comparison
  */
-function verifyApiKey(request: Request, expectedKey: string): boolean {
+async function verifyApiKey(request: Request, expectedKey: string): Promise<boolean> {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader) return false;
 
@@ -68,7 +168,23 @@ function verifyApiKey(request: Request, expectedKey: string): boolean {
     ? authHeader.slice(7)
     : authHeader;
 
-  return token === expectedKey;
+  // Timing-safe comparison to prevent timing attacks
+  const encoder = new TextEncoder();
+  const tokenBytes = encoder.encode(token);
+  const expectedBytes = encoder.encode(expectedKey);
+  
+  // Keys must be same length
+  if (tokenBytes.length !== expectedBytes.length) {
+    return false;
+  }
+  
+  try {
+    const isEqual = await crypto.subtle.timingSafeEqual(tokenBytes, expectedBytes);
+    return isEqual;
+  } catch {
+    // Fallback if timingSafeEqual not available (shouldn't happen in modern Workers)
+    return false;
+  }
 }
 
 /**
@@ -85,7 +201,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // Check API key first (faster)
-  if (env.ADMIN_API_KEY && verifyApiKey(request, env.ADMIN_API_KEY)) {
+  if (env.ADMIN_API_KEY && await verifyApiKey(request, env.ADMIN_API_KEY)) {
     return next();
   }
 

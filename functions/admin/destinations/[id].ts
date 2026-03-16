@@ -14,6 +14,21 @@ const VALID_CONTINENTS = [
   'Antarctica',
 ];
 
+// Allowlist for updatable columns to prevent SQL injection
+const ALLOWED_COLUMNS = new Set([
+  'name_en',
+  'name_cs',
+  'description_en',
+  'description_cs',
+  'lat',
+  'lng',
+  'continent',
+  'visited_at_year',
+  'visited_from',
+  'visited_to',
+  'updated_at',
+]);
+
 interface UpdateDestinationInput {
   name_en?: string;
   name_cs?: string;
@@ -61,28 +76,39 @@ export const onRequestPatch: PagesFunction<Env> = async ({ params, request, env 
     // Validate input
     const errors: string[] = [];
     
-    if (input.name_en !== undefined && !input.name_en.trim()) {
-      errors.push('name_en cannot be empty');
+    // Type-safe string validation
+    if (input.name_en !== undefined) {
+      if (typeof input.name_en !== 'string' || !input.name_en.trim()) {
+        errors.push('name_en must be a non-empty string');
+      }
     }
-    if (input.name_cs !== undefined && !input.name_cs.trim()) {
-      errors.push('name_cs cannot be empty');
+    if (input.name_cs !== undefined) {
+      if (typeof input.name_cs !== 'string' || !input.name_cs.trim()) {
+        errors.push('name_cs must be a non-empty string');
+      }
     }
-    if (input.description_en !== undefined && !input.description_en.trim()) {
-      errors.push('description_en cannot be empty');
+    if (input.description_en !== undefined) {
+      if (typeof input.description_en !== 'string' || !input.description_en.trim()) {
+        errors.push('description_en must be a non-empty string');
+      }
     }
-    if (input.description_cs !== undefined && !input.description_cs.trim()) {
-      errors.push('description_cs cannot be empty');
+    if (input.description_cs !== undefined) {
+      if (typeof input.description_cs !== 'string' || !input.description_cs.trim()) {
+        errors.push('description_cs must be a non-empty string');
+      }
     }
     
-    if (input.lat !== undefined && (input.lat < -90 || input.lat > 90)) {
-      errors.push('lat must be between -90 and 90');
+    if (input.lat !== undefined && (typeof input.lat !== 'number' || input.lat < -90 || input.lat > 90)) {
+      errors.push('lat must be a number between -90 and 90');
     }
-    if (input.lng !== undefined && (input.lng < -180 || input.lng > 180)) {
-      errors.push('lng must be between -180 and 180');
+    if (input.lng !== undefined && (typeof input.lng !== 'number' || input.lng < -180 || input.lng > 180)) {
+      errors.push('lng must be a number between -180 and 180');
     }
     
-    if (input.continent !== undefined && !VALID_CONTINENTS.includes(input.continent)) {
-      errors.push(`continent must be one of: ${VALID_CONTINENTS.join(', ')}`);
+    if (input.continent !== undefined) {
+      if (typeof input.continent !== 'string' || !VALID_CONTINENTS.includes(input.continent)) {
+        errors.push(`continent must be one of: ${VALID_CONTINENTS.join(', ')}`);
+      }
     }
     
     if (input.visited_at_year !== undefined && 
@@ -99,23 +125,23 @@ export const onRequestPatch: PagesFunction<Env> = async ({ params, request, env 
       );
     }
 
-    // Build dynamic UPDATE query
+    // Build dynamic UPDATE query with column allowlist
     const updates: string[] = [];
     const bindings: (string | number | null)[] = [];
 
-    if (input.name_en !== undefined) {
+    if (input.name_en !== undefined && typeof input.name_en === 'string') {
       updates.push('name_en = ?');
       bindings.push(input.name_en.trim());
     }
-    if (input.name_cs !== undefined) {
+    if (input.name_cs !== undefined && typeof input.name_cs === 'string') {
       updates.push('name_cs = ?');
       bindings.push(input.name_cs.trim());
     }
-    if (input.description_en !== undefined) {
+    if (input.description_en !== undefined && typeof input.description_en === 'string') {
       updates.push('description_en = ?');
       bindings.push(input.description_en.trim());
     }
-    if (input.description_cs !== undefined) {
+    if (input.description_cs !== undefined && typeof input.description_cs === 'string') {
       updates.push('description_cs = ?');
       bindings.push(input.description_cs.trim());
     }
@@ -154,6 +180,18 @@ export const onRequestPatch: PagesFunction<Env> = async ({ params, request, env 
     // Always update updated_at
     updates.push('updated_at = ?');
     bindings.push(new Date().toISOString());
+
+    // Verify all column names are in allowlist (defense in depth)
+    for (const update of updates) {
+      const columnName = update.split(' = ')[0];
+      if (!ALLOWED_COLUMNS.has(columnName)) {
+        console.error(`Attempted to update non-allowlisted column: ${columnName}`);
+        return Response.json(
+          { error: 'Invalid field' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Add id to bindings (for WHERE clause)
     bindings.push(id);
@@ -225,14 +263,27 @@ export const onRequestDelete: PagesFunction<Env> = async ({ params, env }) => {
     // Delete photos from R2
     const r2Deletions: Promise<void>[] = [];
     for (const photo of photos.results as any[]) {
-      if (photo.full_url) {
-        r2Deletions.push(env.PHOTOS.delete(photo.full_url));
+      // Only attempt R2 deletion for URLs that are R2 keys (not data URLs)
+      if (photo.full_url && !photo.full_url.startsWith('data:')) {
+        r2Deletions.push(
+          env.PHOTOS.delete(photo.full_url).catch(err => {
+            console.error(`Failed to delete R2 object ${photo.full_url}:`, err);
+          })
+        );
       }
-      if (photo.thumb_url) {
-        r2Deletions.push(env.PHOTOS.delete(photo.thumb_url));
+      if (photo.thumb_url && !photo.thumb_url.startsWith('data:')) {
+        r2Deletions.push(
+          env.PHOTOS.delete(photo.thumb_url).catch(err => {
+            console.error(`Failed to delete R2 object ${photo.thumb_url}:`, err);
+          })
+        );
       }
-      if (photo.blur_url) {
-        r2Deletions.push(env.PHOTOS.delete(photo.blur_url));
+      if (photo.blur_url && !photo.blur_url.startsWith('data:')) {
+        r2Deletions.push(
+          env.PHOTOS.delete(photo.blur_url).catch(err => {
+            console.error(`Failed to delete R2 object ${photo.blur_url}:`, err);
+          })
+        );
       }
     }
 

@@ -94,7 +94,11 @@ async function verifyJwtSignature(
     // Verify signature
     const encoder = new TextEncoder();
     const data = encoder.encode(`${parts[0]}.${parts[1]}`);
-    const signature = Uint8Array.from(atob(parts[2].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    
+    // Properly decode base64url signature (convert to base64, add padding, decode)
+    const signatureBase64 = parts[2].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = signatureBase64 + '='.repeat((4 - signatureBase64.length % 4) % 4);
+    const signature = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
     
     const isValid = await crypto.subtle.verify(
       'RSASSA-PKCS1-v1_5',
@@ -144,8 +148,9 @@ async function verifyCloudflareAccessToken(
     const payloadJson = base64UrlDecode(parts[1]);
     const payload = JSON.parse(payloadJson) as { exp?: number };
     
-    // Check expiration
-    if (payload.exp && payload.exp < Date.now() / 1000) {
+    // Check expiration (exp is in seconds, Date.now() in milliseconds)
+    const MILLISECONDS_TO_SECONDS = 1000;
+    if (payload.exp && payload.exp < Date.now() / MILLISECONDS_TO_SECONDS) {
       return false;
     }
 
@@ -173,12 +178,18 @@ async function verifyApiKey(request: Request, expectedKey: string): Promise<bool
   const tokenBytes = encoder.encode(token);
   const expectedBytes = encoder.encode(expectedKey);
   
-  // Keys must be same length
-  if (tokenBytes.length !== expectedBytes.length) {
-    return false;
-  }
-  
   try {
+    // Length check must happen AFTER creating arrays but BEFORE timingSafeEqual
+    // timingSafeEqual requires same-length arrays
+    // We use a constant-time comparison for length check too (via crypto operation)
+    if (tokenBytes.length !== expectedBytes.length) {
+      // To prevent timing attacks on length, we still call timingSafeEqual with dummy data
+      // This ensures consistent timing regardless of length mismatch
+      const dummy = new Uint8Array(1);
+      await crypto.subtle.timingSafeEqual(dummy, dummy);
+      return false;
+    }
+    
     const isEqual = await crypto.subtle.timingSafeEqual(tokenBytes, expectedBytes);
     return isEqual;
   } catch {

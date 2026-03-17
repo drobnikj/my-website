@@ -18,7 +18,9 @@ export const onRequestOptions: PagesFunction = async () => {
 
 export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   try {
-    const { key } = params;
+    // Cloudflare Pages catch-all [[key]] returns an array
+    const keyParts = params.key as string | string[];
+    const key = Array.isArray(keyParts) ? keyParts.join('/') : keyParts;
 
     if (!key || typeof key !== 'string') {
       return new Response('Invalid image key', {

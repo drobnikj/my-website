@@ -75,6 +75,10 @@ async function parseMultipartForm(
   for (const [key, value] of formData.entries()) {
     if (value instanceof File) {
       // Check file size before reading into memory
+      // NOTE: In Cloudflare Workers, formData parsing already loads the entire file into memory.
+      // This check validates size but cannot prevent memory usage. For true streaming validation,
+      // the Stream API would be required, but Workers FormData doesn't support that yet.
+      // This is a known Workers limitation for file uploads.
       if (value.size > maxSize) {
         throw new Error(`File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`);
       }
@@ -140,6 +144,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     // Generate unique ID using crypto.randomUUID() to prevent race conditions
+    // Note: crypto.randomUUID() is cryptographically secure and prevents race conditions
+    // that could occur with sequential ID generation or timestamp-based IDs
     const photoId = crypto.randomUUID();
     const ext = imageFile.name.split('.').pop() || 'jpg';
 

@@ -68,6 +68,15 @@ async function parseMultipartForm(
     throw new Error('Content-Type must be multipart/form-data');
   }
 
+  // Check Content-Length header BEFORE parsing to prevent memory exhaustion
+  const contentLength = request.headers.get('content-length');
+  if (contentLength) {
+    const size = parseInt(contentLength, 10);
+    if (size > maxSize) {
+      throw new Error(`Request size ${size} bytes exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`);
+    }
+  }
+
   const formData = await request.formData();
   const files = new Map<string, { name: string; data: ArrayBuffer; type: string }>();
   const fields = new Map<string, string>();
@@ -222,11 +231,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         await Promise.all(
           uploadedKeys.map(key => env.PHOTOS.delete(key).catch(err => {
             console.error(`Failed to cleanup R2 object ${key}:`, err);
+            // TODO: If cleanup fails here, the R2 file becomes orphaned (exists in R2 but not in DB).
+            // Consider implementing a scheduled Cloudflare Worker (cron trigger) that:
+            // 1. Lists all R2 objects in the PHOTOS bucket
+            // 2. Queries D1 for corresponding photo records
+            // 3. Deletes R2 objects that have no matching DB entry (created_at > 1 hour ago)
+            // This handles edge cases where cleanup fails or Worker crashes mid-operation.
           }))
         );
         console.log('Cleaned up orphaned R2 files:', uploadedKeys);
       } catch (cleanupError) {
         console.error('Failed to cleanup R2 files:', cleanupError);
+        // TODO: Same as above - orphaned files need periodic cleanup job
       }
       
       throw new Error('Failed to save photo metadata');

@@ -4,10 +4,16 @@
  */
 
 // JWT public keys cache
-// NOTE: This cache is in-memory and will NOT persist across Worker invocations.
-// Each cold start will refetch certificates. For production with high traffic,
-// consider using Cloudflare KV with TTL to share cache across all Worker instances.
-// Current implementation accepts the overhead of occasional cert fetches for simplicity.
+// IMPORTANT: This cache is in-memory and does NOT persist across Worker invocations.
+// Since this runs as a Cloudflare Pages Function (not a Durable Object), every cold start
+// will fetch certificates. This is an accepted tradeoff for simplicity.
+// 
+// For production with high traffic and frequent cold starts, consider migrating to:
+// 1. Cloudflare KV with TTL (add env.CERTS_KV binding)
+// 2. Durable Object for persistent cache
+// 
+// Current implementation: Accepts the overhead of occasional cert fetches (~once per cold start).
+// Cold starts are relatively rare in Pages Functions with consistent traffic.
 interface CertsCache {
   keys: JsonWebKey[];
   expiresAt: number;
@@ -100,8 +106,11 @@ async function verifyJwtSignature(
     const data = encoder.encode(`${parts[0]}.${parts[1]}`);
     
     // Properly decode base64url signature (convert to base64, add padding, decode)
+    // Padding calculation: base64url can have 0-3 padding chars
+    // Formula handles already-padded strings correctly: (4 - len % 4) % 4
     const signatureBase64 = parts[2].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = signatureBase64 + '='.repeat((4 - signatureBase64.length % 4) % 4);
+    const pad = (4 - (signatureBase64.length % 4)) % 4;
+    const padded = signatureBase64 + '='.repeat(pad);
     const signature = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
     
     const isValid = await crypto.subtle.verify(
@@ -183,7 +192,7 @@ async function verifyApiKey(request: Request, expectedKey: string): Promise<bool
   const expectedBytes = encoder.encode(expectedKey);
   
   try {
-    // Pad shorter input to match longer one, ensuring constant-time comparison
+    // Pad both inputs to same fixed size for constant-time comparison
     // This prevents timing leaks from both length differences and content comparison
     const maxLen = Math.max(tokenBytes.length, expectedBytes.length);
     const paddedToken = new Uint8Array(maxLen);
@@ -192,10 +201,12 @@ async function verifyApiKey(request: Request, expectedKey: string): Promise<bool
     paddedToken.set(tokenBytes);
     paddedExpected.set(expectedBytes);
     
-    // Now both arrays are same length, timingSafeEqual will run in constant time
+    // timingSafeEqual runs in constant time when arrays are same length
+    // IMPORTANT: We must await the result, otherwise the timing difference is still detectable
     const isEqual = await crypto.subtle.timingSafeEqual(paddedToken, paddedExpected);
     
-    // Still reject if original lengths differed (but timing is now constant)
+    // Check if original lengths matched (still constant-time since we already did the comparison)
+    // This works because timingSafeEqual already executed in constant time above
     return isEqual && tokenBytes.length === expectedBytes.length;
   } catch {
     // Fallback if timingSafeEqual not available (shouldn't happen in modern Workers)

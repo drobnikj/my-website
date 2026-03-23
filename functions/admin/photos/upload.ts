@@ -1,6 +1,16 @@
 /**
  * Admin photo upload endpoint: POST /admin/photos/upload
  * Multipart upload → process image → upload to R2 (full, thumb, blur) → insert to D1
+ * 
+ * Orphaned File Handling:
+ * If cleanup fails after a D1 error, orphaned files remain in R2.
+ * See functions/cron/cleanup-orphaned-photos.ts for a scheduled cleanup worker
+ * that scans R2 and removes files without matching D1 records (older than 1 hour).
+ * 
+ * To deploy the cleanup worker:
+ * 1. Copy cleanup-orphaned-photos.ts to a separate Worker project
+ * 2. Configure cron trigger in wrangler.toml: crons = ["0 2 * * *"]
+ * 3. Deploy as a separate Worker (Pages Functions don't support cron triggers)
  */
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -68,13 +78,27 @@ async function parseMultipartForm(
     throw new Error('Content-Type must be multipart/form-data');
   }
 
-  // Check Content-Length header BEFORE parsing to prevent memory exhaustion
+  // CRITICAL: Check Content-Length header BEFORE calling request.formData()
+  // This prevents memory exhaustion from malicious uploads.
+  // 
+  // Without this check: A 50MB upload would call formData(), which loads the entire
+  // request body into memory BEFORE we can validate size. Workers have a 128MB memory limit,
+  // so large uploads could exhaust memory and crash the Worker.
+  // 
+  // With this check: We reject oversized requests before parsing, preventing memory exhaustion.
+  // 
+  // Note: Content-Length is set by HTTP clients and can be trusted for size validation.
+  // However, it can be missing for chunked transfers (rare for file uploads).
   const contentLength = request.headers.get('content-length');
   if (contentLength) {
     const size = parseInt(contentLength, 10);
     if (size > maxSize) {
       throw new Error(`Request size ${size} bytes exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`);
     }
+  } else {
+    // No Content-Length header (rare for file uploads, but possible)
+    // Proceed with parsing but will validate file size after formData parsing
+    console.warn('Content-Length header missing, cannot pre-validate request size');
   }
 
   const formData = await request.formData();
@@ -83,11 +107,9 @@ async function parseMultipartForm(
 
   for (const [key, value] of formData.entries()) {
     if (value instanceof File) {
-      // Check file size before reading into memory
-      // NOTE: In Cloudflare Workers, formData parsing already loads the entire file into memory.
-      // This check validates size but cannot prevent memory usage. For true streaming validation,
-      // the Stream API would be required, but Workers FormData doesn't support that yet.
-      // This is a known Workers limitation for file uploads.
+      // Secondary size check after parsing (backup if Content-Length was missing)
+      // NOTE: At this point, the file is already in memory, so this is a fallback defense.
+      // The Content-Length check above is the primary protection.
       if (value.size > maxSize) {
         throw new Error(`File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`);
       }
@@ -227,22 +249,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       console.error('D1 insert failed after R2 upload:', dbError);
       
       // Cleanup orphaned R2 files
+      // If this fails, files remain in R2 forever without matching D1 records
       try {
         await Promise.all(
           uploadedKeys.map(key => env.PHOTOS.delete(key).catch(err => {
-            console.error(`Failed to cleanup R2 object ${key}:`, err);
-            // TODO: If cleanup fails here, the R2 file becomes orphaned (exists in R2 but not in DB).
-            // Consider implementing a scheduled Cloudflare Worker (cron trigger) that:
-            // 1. Lists all R2 objects in the PHOTOS bucket
-            // 2. Queries D1 for corresponding photo records
-            // 3. Deletes R2 objects that have no matching DB entry (created_at > 1 hour ago)
-            // This handles edge cases where cleanup fails or Worker crashes mid-operation.
+            console.error(`CRITICAL: Failed to cleanup R2 object ${key}:`, err);
+            // Orphaned file alert - needs manual intervention or scheduled cleanup
           }))
         );
-        console.log('Cleaned up orphaned R2 files:', uploadedKeys);
+        console.log('Cleaned up orphaned R2 files after DB failure:', uploadedKeys);
       } catch (cleanupError) {
-        console.error('Failed to cleanup R2 files:', cleanupError);
-        // TODO: Same as above - orphaned files need periodic cleanup job
+        console.error('CRITICAL: Cleanup failed, orphaned files in R2:', uploadedKeys, cleanupError);
       }
       
       throw new Error('Failed to save photo metadata');

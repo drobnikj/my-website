@@ -5,6 +5,7 @@ import './App.css';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 
 const TravelsPage = lazy(() => import('./pages/TravelsPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 // Create a client
 const queryClient = new QueryClient({
@@ -312,6 +313,14 @@ function AppContent() {
             element={
               <Suspense fallback={<div className="app"><div className="travel-map-loading">Loading…</div></div>}>
                 <TravelsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <Suspense fallback={<div className="app"><div className="travel-map-loading">Loading…</div></div>}>
+                <AdminPage />
               </Suspense>
             }
           />

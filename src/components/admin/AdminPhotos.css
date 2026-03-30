@@ -1,0 +1,341 @@
+/* Photos Filters */
+.admin-photos-filters {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.admin-photos-filter-label {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.admin-photos-filter-select {
+  flex: 1;
+  max-width: 300px;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.admin-photos-filter-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Empty State Small */
+.admin-empty-state-small {
+  padding: 3rem 2rem;
+}
+
+.admin-empty-state-small .admin-empty-state-icon {
+  font-size: 3rem;
+}
+
+.admin-empty-state-small .admin-empty-state-title {
+  font-size: 1.25rem;
+}
+
+/* Photos Grid */
+.admin-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.admin-photo-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s;
+  cursor: grab;
+}
+
+.admin-photo-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.admin-photo-card-dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.admin-photo-card-image-wrapper {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.admin-photo-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-photo-card-hidden-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin-photo-card-actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.admin-photo-card:hover .admin-photo-card-actions {
+  opacity: 1;
+}
+
+.admin-photo-card-action {
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+
+.admin-photo-card-action:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.1);
+}
+
+.admin-photo-card-action-danger:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.admin-photo-card-info {
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.admin-photo-card-order {
+  background: var(--accent);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.admin-photo-card-caption {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text);
+  line-height: 1.4;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.admin-photo-card-caption em {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Upload Modal */
+.admin-modal-large {
+  max-width: 900px;
+}
+
+.admin-upload-destination {
+  padding: 1rem 1.5rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.admin-upload-destination-label {
+  color: var(--text-muted);
+}
+
+.admin-upload-dropzone {
+  margin: 1.5rem;
+  padding: 3rem 2rem;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-upload-dropzone:hover {
+  border-color: var(--accent);
+  background: var(--card-bg);
+}
+
+.admin-upload-dropzone-active {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+
+.admin-upload-dropzone-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.admin-upload-dropzone-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.admin-upload-dropzone-hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.admin-upload-input {
+  display: none;
+}
+
+/* Upload Preview */
+.admin-upload-preview {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.admin-upload-preview-title {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-upload-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.admin-upload-preview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-upload-preview-image-wrapper {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.admin-upload-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-upload-preview-remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.admin-upload-preview-image-wrapper:hover .admin-upload-preview-remove {
+  opacity: 1;
+}
+
+.admin-upload-preview-remove:hover {
+  background: rgba(220, 38, 38, 1);
+  transform: scale(1.1);
+}
+
+.admin-upload-preview-caption {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.admin-upload-preview-caption:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.admin-upload-preview-filename {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-photos-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-photos-filter-select {
+    max-width: none;
+  }
+
+  .admin-photos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+
+  .admin-upload-dropzone {
+    padding: 2rem 1rem;
+  }
+
+  .admin-upload-preview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}

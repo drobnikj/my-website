@@ -24,15 +24,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Run tests
-        run: |
-          npm run test:api
-          npm run build
-          npx playwright install --with-deps chromium
-          npm run test:e2e
-        env:
-          CI: true
-          BASE_URL: http://localhost:5173
+      - name: Build
+        run: npm run build
       
       - name: Run D1 migrations
         run: npx wrangler d1 migrations apply my-website-db --remote
@@ -49,8 +42,25 @@ jobs:
       
       - name: Post-deploy health check
         run: |
-          sleep 10
-          curl -f https://my-website.pages.dev/api/health || exit 1
+          MAX_RETRIES=5
+          RETRY_DELAY=2
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Health check attempt $i/$MAX_RETRIES..."
+            if curl -f https://my-website.pages.dev/api/health; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            
+            if [ $i -lt $MAX_RETRIES ]; then
+              echo "⏳ Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+              RETRY_DELAY=$((RETRY_DELAY * 2))
+            fi
+          done
+          
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          exit 1
       
       - name: Notify deployment success
         if: success()

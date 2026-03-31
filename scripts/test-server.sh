@@ -37,7 +37,7 @@ done
 
 # Run tests
 echo "Running API tests..."
-npm run test:api
+npm run test:api:only
 
 # Cleanup
 echo "Stopping server..."

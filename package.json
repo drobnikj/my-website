@@ -16,6 +16,7 @@
     "test:api:only": "vitest run tests/api",
     "test:api:watch": "vitest watch tests/api",
     "test:api:ui": "vitest --ui tests/api",
+    "test:coverage": "vitest run --coverage tests/api",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",

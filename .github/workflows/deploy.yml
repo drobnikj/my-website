@@ -38,10 +38,11 @@ jobs:
       - name: Extract deployment URL
         id: extract-url
         run: |
-          # Extract URL from wrangler output or use fallback
+          # Extract URL from wrangler output
           DEPLOY_URL="${{ steps.deploy.outputs.deployment-url }}"
           if [ -z "$DEPLOY_URL" ]; then
-            DEPLOY_URL="https://my-website.pages.dev"
+            echo "❌ Failed to extract deployment URL from wrangler output"
+            exit 1
           fi
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
           echo "Deployment URL: $DEPLOY_URL"
@@ -70,7 +71,16 @@ jobs:
           exit 1
       
       - name: Run D1 migrations
-        run: npx wrangler d1 migrations apply my-website-db --remote
+        run: |
+          echo "Running D1 migrations..."
+          if npx wrangler d1 migrations apply my-website-db --remote; then
+            echo "✅ Migrations completed successfully"
+          else
+            echo "❌ Migration failed - deployment may be in unstable state"
+            echo "Please check database state and run migrations manually if needed:"
+            echo "  npx wrangler d1 migrations apply my-website-db --remote"
+            exit 1
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

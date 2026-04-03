@@ -32,6 +32,7 @@ jobs:
         run: npm run test:api
         env:
           TEST_API_URL: http://localhost:8788
+          TEST_ADMIN_API_KEY: test-key-123  # Used by admin API tests in tests/api/integration.test.ts
 
   e2e-tests:
     name: E2E Smoke Tests

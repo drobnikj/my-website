@@ -59,7 +59,6 @@ jobs:
         run: npm run test:e2e
         env:
           CI: true
-          BASE_URL: http://localhost:5173
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

@@ -1,8 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { describe, it, expect } from 'vitest';
 
 // Integration tests that run against a local wrangler dev server
 // These test the actual Pages Functions endpoints
@@ -65,7 +61,12 @@ describe('API Integration Tests', () => {
       expect(data).toHaveProperty('data');
       
       // If data exists, all should be from 2024
-      data.data.forEach((dest: any) => {
+      interface Destination {
+        id: string;
+        visited_at_year: number;
+        continent: string;
+      }
+      data.data.forEach((dest: Destination) => {
         expect(dest.visited_at_year).toBe(2024);
       });
     });
@@ -78,7 +79,10 @@ describe('API Integration Tests', () => {
       expect(data).toHaveProperty('data');
       
       // If data exists, all should be from Europe
-      data.data.forEach((dest: any) => {
+      interface Destination {
+        continent: string;
+      }
+      data.data.forEach((dest: Destination) => {
         expect(dest.continent).toBe('Europe');
       });
     });

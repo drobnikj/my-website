@@ -47,6 +47,21 @@ jobs:
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
           echo "Deployment URL: $DEPLOY_URL"
       
+      - name: Run D1 migrations
+        run: |
+          echo "Running D1 migrations..."
+          if npx wrangler d1 migrations apply my-website-db --remote; then
+            echo "✅ Migrations completed successfully"
+          else
+            echo "❌ Migration failed - deployment may be in unstable state"
+            echo "Please check database state and run migrations manually if needed:"
+            echo "  npx wrangler d1 migrations apply my-website-db --remote"
+            exit 1
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
       - name: Post-deploy health check
         run: |
           DEPLOY_URL="${{ steps.extract-url.outputs.url }}"
@@ -69,21 +84,6 @@ jobs:
           
           echo "❌ Health check failed after $MAX_RETRIES attempts"
           exit 1
-      
-      - name: Run D1 migrations
-        run: |
-          echo "Running D1 migrations..."
-          if npx wrangler d1 migrations apply my-website-db --remote; then
-            echo "✅ Migrations completed successfully"
-          else
-            echo "❌ Migration failed - deployment may be in unstable state"
-            echo "Please check database state and run migrations manually if needed:"
-            echo "  npx wrangler d1 migrations apply my-website-db --remote"
-            exit 1
-          fi
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       
       - name: Notify deployment success
         if: success()

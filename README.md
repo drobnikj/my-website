@@ -83,8 +83,9 @@ Personal travel photography website with dynamic photo management powered by Clo
 | `npm run migrate:prod:dry` | Dry-run production migration |
 | `npm run lint` | Run ESLint |
 | `npm test` | Run all tests (API + E2E) |
-| `npm run test:api` | Run API unit tests |
+| `npm run test:api` | Run API integration tests via `scripts/test-server.sh` |
 | `npm run test:api:watch` | Run API tests in watch mode |
+| `npm run test:coverage` | Run API tests with coverage reporting |
 | `npm run test:e2e` | Run E2E smoke tests |
 | `npm run test:e2e:ui` | Run E2E tests with UI |
 
@@ -94,7 +95,7 @@ Personal travel photography website with dynamic photo management powered by Clo
 
 This project includes comprehensive testing:
 
-- **API Unit Tests** — Vitest with Cloudflare Workers test environment
+- **API Integration Tests** — Vitest against local Wrangler Pages dev
 - **E2E Smoke Tests** — Playwright for critical user flows
 
 ```bash
@@ -103,6 +104,9 @@ npm test
 
 # Run API tests only
 npm run test:api
+
+# Run API coverage
+npm run test:coverage
 
 # Run E2E tests only
 npm run test:e2e

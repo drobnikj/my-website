@@ -20,9 +20,9 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run preview',
-    url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
+    command: 'bash scripts/e2e-server.sh',
+    url: 'http://localhost:4173/api/health',
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });

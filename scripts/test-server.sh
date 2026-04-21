@@ -1,17 +1,20 @@
 #!/bin/bash
-# Script to start a local Wrangler server and run API integration tests against it.
+# Start a local Pages dev server for API integration tests.
+# This script is wired to `npm run test:api` and reused by CI.
 
 set -euo pipefail
 
-PORT="${TEST_API_PORT:-8788}"
-TEST_API_URL="${TEST_API_URL:-http://localhost:${PORT}}"
+PORT="${PORT:-${TEST_API_PORT:-8788}}"
+PERSIST_DIR="${WRANGLER_PERSIST_DIR:-.wrangler/state}"
 TEST_ADMIN_API_KEY="${TEST_ADMIN_API_KEY:-test-key-123}"
+export ADMIN_API_KEY="${ADMIN_API_KEY:-$TEST_ADMIN_API_KEY}"
+WRANGLER_PID=""
 
 cleanup() {
-  if [ -n "${WRANGLER_PID:-}" ]; then
-    echo "Stopping Wrangler dev server..."
-    kill "$WRANGLER_PID" 2>/dev/null || true
-    wait "$WRANGLER_PID" 2>/dev/null || true
+  if [ -n "${WRANGLER_PID}" ]; then
+    echo "Stopping server..."
+    kill "${WRANGLER_PID}" 2>/dev/null || true
+    wait "${WRANGLER_PID}" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -21,17 +24,20 @@ trap cleanup EXIT
 echo "Building frontend..."
 npm run build
 
-# Setup database BEFORE starting wrangler (ensures D1 local state is ready)
-# Note: 0004_seed.sql migration includes seed data, so no separate seed step is needed.
+# Apply migrations to the same persisted local state that wrangler pages dev will use.
 echo "Setting up test database..."
 npm run db:migrate:local
 
-# Start wrangler dev in background with the same admin API key that tests use.
-echo "Starting Wrangler dev server on ${TEST_API_URL}..."
-ADMIN_API_KEY="$TEST_ADMIN_API_KEY" npx wrangler pages dev dist \
+echo "Seeding test database..."
+npm run db:seed:local
+
+# Start wrangler dev in background
+echo "Starting Wrangler dev server on port ${PORT} with test ADMIN_API_KEY..."
+npx wrangler pages dev dist \
   --d1 DB=my-website-db \
   --r2 PHOTOS=my-website-photos \
-  --port "$PORT" \
+  --port "${PORT}" \
+  --persist-to "${PERSIST_DIR}" \
   --local \
   &
 
@@ -40,7 +46,7 @@ WRANGLER_PID=$!
 # Wait for server to be ready
 echo "Waiting for server to start..."
 for i in {1..30}; do
-  if curl -s "$TEST_API_URL/api/health" > /dev/null 2>&1; then
+  if curl -s "http://localhost:${PORT}/api/health" > /dev/null 2>&1; then
     echo "Server is ready!"
     break
   fi
@@ -54,7 +60,8 @@ for i in {1..30}; do
 done
 
 # Run tests
-echo "Running API tests..."
-TEST_API_URL="$TEST_API_URL" TEST_ADMIN_API_KEY="$TEST_ADMIN_API_KEY" npm run test:api:only
+TEST_COMMAND="${TEST_COMMAND:-npm run test:api:only}"
+echo "Running tests: ${TEST_COMMAND}"
+TEST_API_URL="http://localhost:${PORT}" TEST_ADMIN_API_KEY="${TEST_ADMIN_API_KEY}" bash -lc "${TEST_COMMAND}"
 
 echo "Done!"

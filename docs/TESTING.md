@@ -4,19 +4,17 @@ This document describes the testing setup and how to run tests for the my-websit
 
 ## Test Stack
 
-- **API Unit Tests:** Vitest + Cloudflare Workers test environment
-- **E2E Tests:** Playwright
-- **Coverage:** c8 (V8 coverage)
+- **API Integration Tests:** Vitest against a local Wrangler Pages dev server
+- **E2E Tests:** Playwright against a local Pages app bootstrapped by `scripts/e2e-server.sh`
+- **Coverage:** Vitest V8 coverage via `@vitest/coverage-v8`
 
 ## Test Structure
 
 ```
 tests/
-├── api/                    # API unit tests
-│   ├── health.test.ts      # Health endpoint tests
-│   ├── destinations.test.ts # Public API tests
-│   └── admin.test.ts       # Admin API tests
-└── e2e/                    # End-to-end tests
+├── api/
+│   └── integration.test.ts # API integration tests against local wrangler
+└── e2e/
     └── smoke.spec.ts       # Frontend smoke tests
 ```
 
@@ -28,7 +26,7 @@ tests/
 npm test
 ```
 
-### API Unit Tests
+### API Integration Tests
 
 ```bash
 # Run once
@@ -39,6 +37,9 @@ npm run test:api:watch
 
 # Interactive UI
 npm run test:api:ui
+
+# Coverage report
+npm run test:coverage
 ```
 
 ### E2E Tests
@@ -60,9 +61,9 @@ npx playwright test tests/e2e/smoke.spec.ts
 npx playwright test --headed
 ```
 
-## API Unit Tests
+## API Integration Tests
 
-API tests use Vitest with the Cloudflare Workers test environment. They run against isolated D1 and R2 instances.
+API tests use Vitest against a local Wrangler Pages dev server started by `scripts/test-server.sh`. The helper builds the app, applies local D1 migrations, starts Pages dev with a persisted state directory, and then runs `vitest` against `TEST_API_URL`.
 
 ### Writing API Tests
 
@@ -99,7 +100,7 @@ describe('My API Endpoint', () => {
 Coverage reports are generated in `coverage/` directory:
 
 ```bash
-npm run test:api
+npm run test:coverage
 
 # Open coverage report
 open coverage/index.html

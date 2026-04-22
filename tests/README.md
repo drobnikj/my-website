@@ -14,7 +14,7 @@ tests/
 
 ### API Tests
 
-API tests run against a local Wrangler dev server:
+API tests run against a local Wrangler dev server via `scripts/test-server.sh`:
 
 ```bash
 npm run test:api
@@ -22,9 +22,17 @@ npm run test:api
 
 This will:
 1. Build the frontend
-2. Start Wrangler Pages dev server
-3. Run integration tests
-4. Stop the server
+2. Apply local D1 migrations (including the `0004_seed.sql` seed migration)
+3. Start Wrangler Pages dev server
+4. Inject `ADMIN_API_KEY` into the local runtime using `TEST_ADMIN_API_KEY`
+5. Run integration tests
+6. Stop the server
+
+If you need a non-default key or port, override them when starting the test runner:
+
+```bash
+TEST_ADMIN_API_KEY=my-test-key TEST_API_PORT=8789 npm run test:api
+```
 
 **Manual testing:**
 
@@ -32,11 +40,10 @@ If you want to run tests against an already-running server:
 
 ```bash
 # Terminal 1: Start server
-npm run build
-npm run dev:functions
+ADMIN_API_KEY=test-key-123 npm run dev:functions
 
 # Terminal 2: Run tests
-TEST_API_URL=http://localhost:8788 npm run test:api:only
+TEST_API_URL=http://localhost:8788 TEST_ADMIN_API_KEY=test-key-123 npm run test:api:only
 ```
 
 ### E2E Tests
@@ -60,7 +67,7 @@ npm test
 - **Server:** Wrangler Pages dev server (local)
 - **Database:** Local D1 (SQLite)
 - **Storage:** Local R2 (filesystem)
-- **Auth:** Test API key (`test-key-123`)
+- **Auth:** `TEST_ADMIN_API_KEY` for the test suite, forwarded as `ADMIN_API_KEY` to the local runtime
 
 ### E2E Tests
 

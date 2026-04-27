@@ -141,8 +141,8 @@ describe('API Integration Tests', () => {
 });
 
 describe('Admin API Integration Tests', () => {
-  // tests/test-server.sh injects this into Wrangler as ADMIN_API_KEY.
-  // The fallback keeps local ad-hoc runs working without extra setup.
+  // TEST_ADMIN_API_KEY is set in .github/workflows/test.yml and forwarded by scripts/test-server.sh
+  // Fallback value allows running tests locally without setting the env var
   const TEST_API_KEY = process.env.TEST_ADMIN_API_KEY || 'test-key-123';
 
   describe('Authentication', () => {

@@ -6,9 +6,34 @@ set -euo pipefail
 
 PORT="${PORT:-${TEST_API_PORT:-8788}}"
 PERSIST_DIR="${WRANGLER_PERSIST_DIR:-.wrangler/state}"
-TEST_ADMIN_API_KEY="${TEST_ADMIN_API_KEY:-test-key-123}"
+TEST_ADMIN_API_KEY="${TEST_ADMIN_API_KEY:-test-key-for-local-dev-123}"
 export ADMIN_API_KEY="${ADMIN_API_KEY:-$TEST_ADMIN_API_KEY}"
 WRANGLER_PID=""
+
+sync_local_d1_state() {
+  local db_dir="${PERSIST_DIR}/v3/d1/miniflare-D1DatabaseObject"
+  [ -d "${db_dir}" ] || return 0
+
+  local source_db=""
+  local db_file=""
+  for db_file in "${db_dir}"/*.sqlite; do
+    [ -f "${db_file}" ] || continue
+    if sqlite3 "${db_file}" ".tables" | grep -q '\bdestinations\b'; then
+      source_db="${db_file}"
+      break
+    fi
+  done
+
+  [ -n "${source_db}" ] || return 0
+
+  for db_file in "${db_dir}"/*.sqlite; do
+    [ -f "${db_file}" ] || continue
+    if ! sqlite3 "${db_file}" ".tables" | grep -q '\bdestinations\b'; then
+      echo "Syncing local D1 state into $(basename "${db_file}")..."
+      sqlite3 "${db_file}" ".restore ${source_db}"
+    fi
+  done
+}
 
 cleanup() {
   if [ -n "${WRANGLER_PID}" ]; then
@@ -47,6 +72,7 @@ WRANGLER_PID=$!
 echo "Waiting for server to start..."
 for i in {1..30}; do
   if curl -s "http://localhost:${PORT}/api/health" > /dev/null 2>&1; then
+    sync_local_d1_state
     echo "Server is ready!"
     break
   fi

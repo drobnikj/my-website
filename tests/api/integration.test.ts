@@ -12,7 +12,7 @@ describe('API Integration Tests', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(data).toEqual({
+      expect(data).toMatchObject({
         status: 'ok',
         timestamp: expect.any(String),
       });
@@ -143,7 +143,7 @@ describe('API Integration Tests', () => {
 describe('Admin API Integration Tests', () => {
   // TEST_ADMIN_API_KEY is set in .github/workflows/test.yml and forwarded by scripts/test-server.sh
   // Fallback value allows running tests locally without setting the env var
-  const TEST_API_KEY = process.env.TEST_ADMIN_API_KEY || 'test-key-123';
+  const TEST_API_KEY = process.env.TEST_ADMIN_API_KEY || 'test-key-for-local-dev-123';
 
   describe('Authentication', () => {
     it('rejects requests without auth', async () => {

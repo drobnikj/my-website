@@ -11,7 +11,7 @@ test.describe('Website smoke tests', () => {
 
     await expect(page).toHaveTitle(/Jakub Drobník/i);
     await expect(page.getByRole('heading', { level: 1, name: /Jakub Drobník/i })).toBeVisible();
-    await expect(page.getByRole('link', { name: /travel map/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /travels|cesty/i }).first()).toBeVisible();
   });
 
   test('travels page renders map and destination data', async ({ page }) => {

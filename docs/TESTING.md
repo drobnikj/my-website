@@ -179,10 +179,10 @@ Tests run automatically on:
 - Lint checks
 
 # .github/workflows/deploy.yml
-- Run all tests
-- Apply D1 migrations
+- Build app
 - Deploy to Cloudflare Pages
-- Post-deploy health check
+- Apply D1 migrations
+- Post-migration health check
 ```
 
 ### CI Environment Variables

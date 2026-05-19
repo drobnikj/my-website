@@ -7,8 +7,8 @@ set -euo pipefail
 PORT="${PORT:-${TEST_API_PORT:-8788}}"
 PERSIST_DIR="${WRANGLER_PERSIST_DIR:-.wrangler/state}"
 TEST_ADMIN_API_KEY="${TEST_ADMIN_API_KEY:-test-key-for-local-dev-123}"
-export ADMIN_API_KEY="${ADMIN_API_KEY:-$TEST_ADMIN_API_KEY}"
 WRANGLER_PID=""
+DEV_VARS_FILE="$(mktemp -t my-website-dev-vars.XXXXXX)"
 
 sync_local_d1_state() {
   local db_dir="${PERSIST_DIR}/v3/d1/miniflare-D1DatabaseObject"
@@ -36,6 +36,8 @@ sync_local_d1_state() {
 }
 
 cleanup() {
+  rm -f "${DEV_VARS_FILE}"
+
   if [ -n "${WRANGLER_PID}" ]; then
     echo "Stopping server..."
     kill "${WRANGLER_PID}" 2>/dev/null || true
@@ -56,14 +58,20 @@ npm run db:migrate:local
 echo "Seeding test database..."
 npm run db:seed:local
 
+cat > "${DEV_VARS_FILE}" <<EOF
+ADMIN_API_KEY=${ADMIN_API_KEY:-$TEST_ADMIN_API_KEY}
+EOF
+
 # Start wrangler dev in background
 echo "Starting Wrangler dev server on port ${PORT} with test ADMIN_API_KEY..."
 npx wrangler pages dev dist \
   --d1 DB=my-website-db \
   --r2 PHOTOS=my-website-photos \
+  --binding "ADMIN_API_KEY=${ADMIN_API_KEY:-$TEST_ADMIN_API_KEY}" \
   --port "${PORT}" \
   --persist-to "${PERSIST_DIR}" \
   --local \
+  --env-file "${DEV_VARS_FILE}" \
   &
 
 WRANGLER_PID=$!

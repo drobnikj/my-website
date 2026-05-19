@@ -5,7 +5,9 @@ set -euo pipefail
 
 PORT="${PORT:-4173}"
 PERSIST_DIR="${WRANGLER_PERSIST_DIR:-.wrangler/state}"
+TEST_ADMIN_API_KEY="${TEST_ADMIN_API_KEY:-test-key-for-local-dev-123}"
 WRANGLER_PID=""
+DEV_VARS_FILE="$(mktemp -t my-website-e2e-dev-vars.XXXXXX)"
 
 sync_local_d1_state() {
   local db_dir="${PERSIST_DIR}/v3/d1/miniflare-D1DatabaseObject"
@@ -51,6 +53,8 @@ all_local_d1_dbs_ready() {
 
 
 cleanup() {
+  rm -f "${DEV_VARS_FILE}"
+
   if [ -n "${WRANGLER_PID}" ]; then
     kill "${WRANGLER_PID}" 2>/dev/null || true
     wait "${WRANGLER_PID}" 2>/dev/null || true
@@ -65,13 +69,19 @@ echo "Preparing local D1 database..."
 npm run db:migrate:local
 npm run db:seed:local
 
+cat > "${DEV_VARS_FILE}" <<EOF
+ADMIN_API_KEY=${ADMIN_API_KEY:-$TEST_ADMIN_API_KEY}
+EOF
+
 echo "Starting Wrangler Pages dev server on port ${PORT}..."
 npx wrangler pages dev dist \
   --d1 DB=my-website-db \
   --r2 PHOTOS=my-website-photos \
+  --binding "ADMIN_API_KEY=${ADMIN_API_KEY:-$TEST_ADMIN_API_KEY}" \
   --port "${PORT}" \
   --persist-to "${PERSIST_DIR}" \
   --local \
+  --env-file "${DEV_VARS_FILE}" \
   &
 
 WRANGLER_PID=$!
